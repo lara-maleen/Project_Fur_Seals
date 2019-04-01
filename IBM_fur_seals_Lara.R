@@ -1,4 +1,5 @@
-#Basic IBM
+#Minimal Model IBM - Fur Seal Project
+
 rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
@@ -6,7 +7,8 @@ simulation.fun <- function(replicates=1, #number of replicates
                    time=100, #number of generations
                    migrate=0.05, #migrationfactor
                    age=2, #age limit for an individual
-                   patches=3, #number of Patches
+                   patches=2, #number of Patches (two different sites: high/low density)
+                   territories=20,#number of territories per patch
                    mutate=0.05, #mutationfactor
                    die=0.05, #level.vector to die
                    
