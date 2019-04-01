@@ -27,8 +27,7 @@ simulation.fun <- function(replicates=1, #number of replicates
                    c10=0.11670283
 ){
 switch(Sys.info()['user'],
-       bio23user = {setwd("/home/bio23user/Documents/Projects/Hiwi-ibm/Hiwi-ibm/")},
-       Leron = {setwd("C:/Users/Leron/Desktop/IBM_code/")},
+       Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
        Anwender = {setwd("C:/Users/Anwender/Desktop/")})
 
 source('Gene_generator.R')
@@ -38,7 +37,7 @@ source('Gene_generator.R')
   
 
 ##### FUNCTIONS #####
-fitness.fun <- function(a,b,z,N,Np){ #FITNESS-FUNCTION
+fitness.fun <- function(a,b,z,N,Np){ #FITNESS-FUNCTION (a,b = coefficients to change function, z = trait value, N= total pop size, Np = pop size of patch)
   y=a+b*plogis(c1+c2*N+c3*z+c4*(0.5*N-Np)+c5*N^2+c6*z^2+c7*(0.5*N-Np)^2+c8*z*N+c9*z*(0.5*N-Np)+c10*N*(0.5*N-Np))
   return(y)
 }
