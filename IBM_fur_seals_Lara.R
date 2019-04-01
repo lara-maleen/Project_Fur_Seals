@@ -27,8 +27,7 @@ simulation.fun <- function(replicates=1, #number of replicates
                    c10=0.11670283
 ){
 switch(Sys.info()['user'],
-       Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
-       Anwender = {setwd("C:/Users/Anwender/Desktop/")})
+       Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")})
 
 source('Gene_generator.R')
 
