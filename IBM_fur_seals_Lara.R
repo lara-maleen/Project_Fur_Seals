@@ -7,7 +7,7 @@ rm(list=ls())
 simulation.fun <- function(replicates=1, #number of replicates
                            time=100, #number of generations
                            migrate=0.05, #migrationfactor
-                           age=5, #age limit for an individual
+                           age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=50, #number of territories per patch
                            mutate=0.05, #mutationfactor
@@ -85,7 +85,7 @@ for(r in 1:replicates){
     ##### INITIALISATION PATCHES #####
     population.total <- c() #empty vector for the population matrix
     statistic.total <- array(NA,dim=c(patches,4,time)) #empty array for the statistics
-    
+        
     
     for(k in 1:patches){ #LOOP OVER PATCHES
       patchx.N <- abs(round(rnorm(1, mean=250, sd=10))) #Number of individuals in the patch 
@@ -98,8 +98,10 @@ for(r in 1:replicates){
       survival <- c(rep(age,patchx.N)) #vector survival: is for all new individuals of both patches the pre defined age limit 
       ID.mother <- c(rep(NA,patchx.N)) #the first generation has no mother and therefore no ID in the column for the mothers ID
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
+      patch_last_year <- ceiling(runif(patchx.N, min=0, max=2)) #generates randomly ID of last years patch for each individual (patch 1 or 2)
+      no_offspring <- c(rep(NA,patchx.N)) #no offspring in first generation, will be filled with males success/offspring from last year
       
-      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father) #the dataframe is constructed for each patch including all vectors which where defined just before
+      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch_last_year, no_offspring) #the dataframe is constructed for each patch including all vectors which where defined just before
       population.total <- rbind(population.total,patchx)  #data frame including all individuals of all patches (the dataframe of a patch is included in the population matrix)
     }
     
@@ -137,6 +139,7 @@ for(r in 1:replicates){
         level.vector <- c() #empty vector
         
         ##### MALE PATCH CHOICE - WHICH PATCH THEY GO #####
+        patchbook_males <- c() #empty vector for patches males go - WRITE IT IN LATER!
         N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
         # Either depending on previous density or the fitness???
       
@@ -149,6 +152,7 @@ for(r in 1:replicates){
         ##### COMPETITION END #####
         
         ### FEMALE PATCH CHOICE ### After male patch and territory decision, because females arrive afterwards in nature
+        patchbook_females <- c() #empty vector for patch females go - WRITE IT IN LATER!
         N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
         #depending on previous density (from last year) and the fitness of existing males?
         
@@ -192,9 +196,11 @@ for(r in 1:replicates){
                 ID.mother.offspring <- c(ID.mother.offspring, rep(mother,offspring.vector[u])) #ID of the mother is written into the vector for all her offspring
                 
                 ###FATHER####
+                no_offspring_vector <- c() #empty vector for number of offspring per father 
                 if(N.male.patch[N.female$patch[u]]>0){ #START ANY MALES IN THE PATCH OF THE MOTHER?: loop starts if there is at least one male individual in the mothers patch
                   father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
                   ID.father.offspring <- c(ID.father.offspring,rep(father,offspring.vector[u])) #ID of the father is written into the vector as often as he becomes offspring with the mother
+                  no_offspring_vector <- sum(rep(father,offspring.vector[u])) #counts of how many offspring one father/male have
                   
                   #GENETICS:
                   loci.mother <- loci.total[loci.total[,21]==mother,] #vector of locis of the mother
@@ -219,6 +225,9 @@ for(r in 1:replicates){
                     } else{ #otherwise the offspring is male
                       genderbook <- c(genderbook,"male") #the gender is written in the gender vector for the offspring  
                     }
+                    
+                    #OFFSPRING SURVIVAL
+                    
                     
                   } #END LOOP NUMBER CHILDREN
                 } #END ANY MALES IN THE PATCH OF THE MOTHER?
@@ -257,7 +266,7 @@ for(r in 1:replicates){
         #erasing dead individuals:
         loci.total <- subset(loci.total,loci.total[,1]>(-2 )) #loci matrix: all rows with a -2 in the beginning are deleted
         population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
-        ##### END DEATH #####    
+        ##### END DEATH #####   
         
         ###Statistic 2##
         population.N[t] <-nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
