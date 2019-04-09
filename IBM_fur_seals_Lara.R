@@ -34,20 +34,20 @@ source('Gene_generator.R')
   
 ##### FUNCTIONS #####
 
-  fitness.fun <- function(a,b,z,N,Np){ #FITNESS-FUNCTION (a,b = coefficients to change function, z = trait value, N= total pop size, Np = pop size of patch)
+fitness.fun <- function(a,b,z,N,Np){ #FITNESS-FUNCTION (a,b = coefficients to change function, z = trait value, N= total pop size, Np = pop size of patch)
     y=a+b*plogis(c1+c2*N+c3*z+c4*(0.5*N-Np)+c5*N^2+c6*z^2+c7*(0.5*N-Np)^2+c8*z*N+c9*z*(0.5*N-Np)+c10*N*(0.5*N-Np))
     return(y)
-  }
+}
   
   
-  ID.fun <- function(offspring.vector){ #ID-FUNCTION
+ID.fun <- function(offspring.vector){ #ID-FUNCTION
     ID.offspring <-   ID.scan:(ID.scan+sum(offspring.vector)-1)
     ID.scan <<- ID.scan + sum(offspring.vector)
     return(ID.offspring)
-  }
+}
   
   
-  trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - Male quality
+trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - Male quality
     value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
     for(y in 1:row){ #for each individual
       for(z in 1:10){ 
@@ -56,10 +56,10 @@ source('Gene_generator.R')
       pop.matrix[y,4] <- abs(sum(value.matrix[y,]))
     }
     return(pop.matrix)
-  }
+}
   
   
-  statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
+statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
     tmp <- aggregate(pop.matrix$trait,by=list(patch = pop.matrix$patch),mean)
     traits <- tmp$x[match(1:Npatch,tmp$patch)] 
     
@@ -67,7 +67,7 @@ source('Gene_generator.R')
           table(factor(pop.matrix[pop.matrix$gender=='male',]$patch,levels=1:Npatch)),
           table(factor(pop.matrix[pop.matrix$gender=='female',]$patch,levels=1:Npatch)),
           as.numeric(traits))
-  }
+}
   
 ##### MATRICES FOR PLOTS ##### with 100 spaces for mean values (1 replicat, 100 years (time))
   meantrait.matrix <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean trait value of the generations in each replicate
@@ -98,10 +98,10 @@ for(r in 1:replicates){
       survival <- c(rep(age,patchx.N)) #vector survival: is for all new individuals of both patches the pre defined age limit 
       ID.mother <- c(rep(NA,patchx.N)) #the first generation has no mother and therefore no ID in the column for the mothers ID
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
-      patch_last_year <- ceiling(runif(patchx.N, min=0, max=2)) #generates randomly ID of last years patch for each individual (patch 1 or 2)
-      no_offspring <- c(rep(NA,patchx.N)) #no offspring in first generation, will be filled with males success/offspring from last year
+      patch.last.year <- ceiling(runif(patchx.N, min=0, max=2)) #generates randomly ID of last years patch for each individual (patch 1 or 2)
+      no.offspring <- c(rep(0,patchx.N)) #no offspring in first generation, will be filled with males success/offspring from last year
       
-      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch_last_year, no_offspring) #the dataframe is constructed for each patch including all vectors which where defined just before
+      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch.last.year, no.offspring) #the dataframe is constructed for each patch including all vectors which where defined just before
       population.total <- rbind(population.total,patchx)  #data frame including all individuals of all patches (the dataframe of a patch is included in the population matrix)
     }
     
@@ -200,8 +200,7 @@ for(r in 1:replicates){
                 if(N.male.patch[N.female$patch[u]]>0){ #START ANY MALES IN THE PATCH OF THE MOTHER?: loop starts if there is at least one male individual in the mothers patch
                   father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
                   ID.father.offspring <- c(ID.father.offspring,rep(father,offspring.vector[u])) #ID of the father is written into the vector as often as he becomes offspring with the mother
-                  no_offspring_vector <- sum(rep(father,offspring.vector[u])) #counts of how many offspring one father/male have
-                  
+                 
                   #GENETICS:
                   loci.mother <- loci.total[loci.total[,21]==mother,] #vector of locis of the mother
                   loci.father <- loci.total[loci.total[,21]==father,] #vector of locis of the father
@@ -234,14 +233,16 @@ for(r in 1:replicates){
               } #END GETS THE MOTHER OFFSPRING?
             } #END LOOP PARTNERFINDING/mother
             
+            population.total$no.offspring <- table(factor(ID.father.offspring,levels=population.total$ID)) #writing the number of offspring into the no_offspring columns, stored for one t
             patchbook <- rep(N.female$patch,offspring.vector) #each offspring becomes the patchnumber of the mother
             ID.offspring <- ID.fun(offspring.vector) #the ID of the offspring is calculated by the ID-function and written into the vector for their ID
             trait.offspring <- c(rep(0,length(patchbook))) #the traitvalue of the offspring is set to 0 for the moment
             survival.offspring <- c(rep(age,length(patchbook))) #each offspring gets the survival of the age limit pre defined
             gender.offspring <- genderbook #genders of the offspring are written into the matrix
             patch.offspring <- patchbook #patches of offspring are written into the matrix
-            population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring) #a new dataframe is made for the offspring of this generation
-            colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father") #column names of the dataframe
+            no.offspring.offspring <-  c(rep(0,length(patchbook)))
+            population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, no.offspring.offspring) #a new dataframe is made for the offspring of this generation
+            colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "no.offspring") #column names of the dataframe
             loci.offspring[,21] <- ID.offspring #the ID of the offspring is written into the matrix of the locis of the offspring
             
             population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring,loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
