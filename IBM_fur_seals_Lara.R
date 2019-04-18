@@ -57,7 +57,27 @@ trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUN
     }
     return(pop.matrix)
 }
-  
+
+choice.fun <- function(population.males, population.total, N.male){
+  average.success <- mean(population.total[population.total$gender=='male',]$no.offspring) #calculate the overall average male reproductive success of previous year
+  decision.matrix <- matrix(NA,nrow=population.males,ncol=1)
+  for(y2 in 1:population.males){ #for each male
+    if (N.male$no.offspring[y2]>=average.success){ #If reproductive success is equal or greater than total pop average than patch stays the same (from last year)
+      decision.matrix[y2] <- N.male$patch.last.year[y2]
+    }
+    else{ #Otherwise the patch is changed in contrary patch 
+      if(N.male$patch.last.year[y2]==1){
+        decision.matrix[y2] <- 2
+      }
+      else{
+        decision.matrix[y2] <- 1
+      }
+    }
+    N.male[y2,2] <- decision.matrix[y2]
+  }
+  return(N.male) #New patch is written into patch column in male matrix
+}
+
   
 statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
     tmp <- aggregate(pop.matrix$trait,by=list(patch = pop.matrix$patch),mean)
@@ -140,13 +160,16 @@ for(r in 1:replicates){
         N.local <- c() #empty vector for local populationsize
         N.female <- subset(population.total,population.total$gender=="female") #number of female individuals in total
         N.male <- subset(population.total,population.total$gender=="male") #number of male individuals in total
+        population.males <- nrow(N.male) #number of male individuals
         level.vector <- c() #empty vector
         
         ##### MALE PATCH CHOICE - WHICH PATCH THEY GO #####
-        patchbook_males <- c() #empty vector for patches males go - WRITE IT IN LATER!
+        patchbook_males <- c()
+        N.male <- choice.fun(population.males, population.total, N.male) #Males decide where to go this year depending on last years success
         N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
-        # Either depending on previous density or the fitness???
-      
+        patchbook_males <- N.male$patch #overwrite patch from previous year
+        population.total[population.total$gender=='male',]$patch <- patchbook_males
+        
         ##### MALE CHOICE END #####
         
         ##### MALE COMPETITION - HOW MANY TERRITORIES #####
@@ -156,9 +179,8 @@ for(r in 1:replicates){
         ##### COMPETITION END #####
         
         ### FEMALE PATCH CHOICE ### After male patch and territory decision, because females arrive afterwards in nature
-        patchbook_females <- c() #empty vector for patch females go - WRITE IT IN LATER!
         N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
-        #depending on previous density (from last year) and the fitness of existing males?
+        #go where males are (depending on quality)
         
         ### FEMALE CHOICE END ###
 
@@ -173,7 +195,7 @@ for(r in 1:replicates){
             N.local <- c(N.local,nrow(subset(population.total,population.total$patch==j))/500) #vector of local population sizes
           }
           
-          if(nrow(N.female)>0){ #number of offspring per femal
+          if(nrow(N.female)>0){ #number of offspring per female
             offspring.vector <- 2*rpois(nrow(N.female),fitness.fun(a,b,N.female$trait,N.0,N.local[N.female$patch])) #each female gets a random number of offspring based on the fitness-function
           }
           
@@ -250,7 +272,7 @@ for(r in 1:replicates){
             loci.offspring[,21] <- ID.offspring #the ID of the offspring is written into the matrix of the locis of the offspring
             
             population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring,loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
-            
+        
             population.total <- rbind(population.total,population.offspring) #the offspring population matrix is added to the general population matrix
             rownames(population.total) <- 1:nrow(population.total) #rownames are overwritten
             loci.total <- rbind(loci.total,loci.offspring) #the offspring loci matrix is added to the general loci matrix
@@ -258,6 +280,7 @@ for(r in 1:replicates){
           }#END ANY FEMALES?
         }#END IS OFFSPRING POSSIBLE?
         
+       
         ##### DEATH START #####
         #death by age:
         population.total$survival[1:N] <- population.total$survival[1:N]-1 #every adult loses one survival counter per generation
@@ -313,13 +336,13 @@ par(mai=rep(0.8,4.5))
 colours <- c("goldenrod1","deepskyblue") #first = patch 1, second = patch 2
   
 #First plot: DENSITY - mean population sizes over time/per patch
-  plot(meanpopulationsize.replicates/territories,main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories))) 
+plot(meanpopulationsize.replicates/territories,main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories))) 
   for(ink in 1:patches){
     lines(meanN.patches.replicates[ink,]/territories,type="l",col=colours[ink])
   }
   
 #Second plot: MALE QUALITY - average trait value over time/per patch 
-  plot(meantrait.males.replicates,main="Average male quality over time", xlab="Time",ylab="Mean Quality Trait",col="white",type="l",ylim = c(min(meanquality.patches.replicates),max(meanquality.patches.replicates)))
+plot(meantrait.males.replicates,main="Average male quality over time", xlab="Time",ylab="Mean Quality Trait",col="white",type="l",ylim = c(min(meanquality.patches.replicates),max(meanquality.patches.replicates)))
   for(ink2 in 1:patches){
     lines(meanquality.patches.replicates[ink2,],type="l",col=colours[ink2])
   }
