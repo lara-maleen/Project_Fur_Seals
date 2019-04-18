@@ -5,7 +5,7 @@ rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
 simulation.fun <- function(replicates=1, #number of replicates
-                           time=100, #number of generations
+                           time=20, #number of generations
                            migrate=0.05, #migrationfactor
                            age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
@@ -47,11 +47,11 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
 }
   
   
-trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - Male quality
+trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
     value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
     for(y in 1:row){ #for each individual
       for(z in 1:10){ 
-        value.matrix[y,z] <- gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]
+        value.matrix[y,z] <- 1+2*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
       }
       pop.matrix[y,4] <- abs(sum(value.matrix[y,]))
     }
@@ -72,10 +72,11 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
 ##### MATRICES FOR PLOTS ##### with 100 spaces for mean values (1 replicat, 100 years (time))
   meantrait.matrix <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean trait value of the generations in each replicate
   meanpopulation.matrix <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean populationsize of the generations in each replicate
+  meantrait.matrix.males <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean male quality trait value of the generations in each replicate
   meanN.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the populationsize of a patch of the generations in each replicate
   meanM.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the populationsize of males of a patch of the generations in each replicate
   meanF.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the populationsize of females of a patch of the generations in each replicate
-  
+  meanquality.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the quality of males of a patch of the generations in each replicate
   
 ##### REPLICATION LOOP START#####
   
@@ -113,9 +114,12 @@ for(r in 1:replicates){
     ##### STATISTIC START #####
     population.N <- rep(0,time) #empty vector for the populationsize of each generation 
     population.meantrait <- rep(0,time) #empty vector for the mean traitvalue of each generation
+    population.meantrait.males <- rep(0,time) #empty vector for the mean male quality traitvalue of each generation
     
     population.N[1] <- nrow(population.total) #the populationsize for the first generation is written into the vector
     population.meantrait[1] <- mean(population.total$trait) #the mean traitvalue for the first generation is written into the vector
+    population.meantrait.males [1] <- mean(population.total$trait[gender=="male"]) #the mean male quality traitvalue for the first generation is written into the vector
+    
     ########STATISTIC END  #####
    
     population <- nrow(population.total) #number of individuals
@@ -272,6 +276,7 @@ for(r in 1:replicates){
         ###Statistic 2##
         population.N[t] <-nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
         population.meantrait[t] <- mean(population.total$trait)#trait.N1.vector[t] <- mean(pop$trait[pop$patch==1]) #overwrites the average trait-value for each generation in the empty vector
+        population.meantrait.males[t] <- mean(population.total$trait[gender=="male"])#trait.N1.vector[t] <- mean(pop$trait[pop$patch==1]) #overwrites the average male quality trait-value for each generation in the empty vector
         
         statistic.total[,,t] <- statistic.fun(population.total,patches) #fills the arry with the statistic: N-pop, m-pop, w-pop, mean trait
         ##### End Statistic 2#############
@@ -280,26 +285,48 @@ for(r in 1:replicates){
       print(t)
     }##### END GENERATION LOOP #####
     meantrait.matrix[r,] <- population.meantrait #writes the mean traitvalues of the replicate into the matrix for all replicates
+    meantrait.matrix.males[r,] <- population.meantrait.males #writes the mean male quality traitvalues of the replicate into the matrix for all replicates
     meanpopulation.matrix[r,] <- population.N #writes the mean populationsize of the replicate into the matrix for all replicates
     
     for(pat in 1:patches){
       meanN.patches.array[pat,,r] <- statistic.total[pat,1,] #the populationsize of all generations of patch pat is written into an array for each replicate
       meanM.patches.array[pat,,r] <- statistic.total[pat,2,] #the populationsize of males of all generations of patch pat is written into an array for each replicate
       meanF.patches.array[pat,,r] <- statistic.total[pat,3,] #the populationsize of females of all generations of patch pat is written into an array for each replicate
-    }
+      meanquality.patches.array[pat,,r] <- statistic.total[pat,4,] #the quality of males of all generations of patch pat is written into an array for each replicate
+      }
     
     
 }##### END REPLICATION LOOP #####
   meantrait.replicates <- colMeans(meantrait.matrix) #calculates the mean traitvalue of a generation over all replicates
+  meantrait.males.replicates <- colMeans(meantrait.matrix.males) #calculates the mean male quality traitvalue of a generation over all replicates
   meanpopulationsize.replicates <- colMeans(meanpopulation.matrix) #calculates the mean populationsize of a generation over all replicates
   meanN.patches.replicates <- rowMeans(meanN.patches.array, dims=2) #calculates the mean populationsize of a generation of a patch over all replicates
   meanM.patches.replicates <- rowMeans(meanM.patches.array, dims=2) #calculates the mean populationsize of male of a generation of a patch over all replicates
   meanF.patches.replicates <- rowMeans(meanF.patches.array, dims=2) #calculates the mean populationsize of female of a generation of a patch over all replicates
+  meanquality.patches.replicates <- rowMeans(meanquality.patches.array, dims=2) #calculates the mean quality of males in a generation of a patch over all replicates
   #})
   
 ##### PLOTS #####
-#First plot: mean population sizes over time/per patch
-#Second plot: patch densities over time
+layout(matrix(c(1,2,3,3), ncol=2, byrow=TRUE), heights=c(4,1))
+par(mai=rep(0.8,4.5))
+
+colours <- c("goldenrod1","deepskyblue") #first = patch 1, second = patch 2
+  
+#First plot: DENSITY - mean population sizes over time/per patch
+  plot(meanpopulationsize.replicates/territories,main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories))) 
+  for(ink in 1:patches){
+    lines(meanN.patches.replicates[ink,]/territories,type="l",col=colours[ink])
+  }
+  
+#Second plot: MALE QUALITY - average trait value over time/per patch 
+  plot(meantrait.males.replicates,main="Average male quality over time", xlab="Time",ylab="Mean Quality Trait",col="white",type="l",ylim = c(min(meanquality.patches.replicates),max(meanquality.patches.replicates)))
+  for(ink2 in 1:patches){
+    lines(meanquality.patches.replicates[ink2,],type="l",col=colours[ink2])
+  }
+  
+par(mai=c(0,0,0,0))
+plot.new()
+legend(x="center", ncol=2,legend=c("Patch I","Patch II"), fill=c("goldenrod1","deepskyblue")) 
 
 }#END SIMULATION.RUN
 
