@@ -78,6 +78,49 @@ choice.fun <- function(population.males, population.total, N.male){
   return(N.male) #New patch is written into patch column in male matrix
 }
 
+territory.fun <- function(N.male, patches, population.males, territories){ #MALES GO TO RANDOM TERRITORY
+  if(nrow(N.male)>0){
+    terr.matrix <- c() #store territory number
+    for(p2 in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
+      if(nrow(N.male[N.male$patch==p2,])>0){ #Just do this when at least one male is in the patch
+        #N.male.patches <- N.male[N.male$patch==p2,] #create matrix with just the males in this patch
+        terr.matrix.patch <- matrix(NA,nrow(N.male[N.male$patch==p2,]),ncol=1) #matrix for territories obtained (just for males in these patch)
+        for(i2 in 1:length(terr.matrix.patch)){ #go through all males 
+          terr.matrix.patch[i2] <- sample(territories, 1) #randomly decide which territory male goes to
+          N.male[N.male$patch==p2,]$terr[i2] <- terr.matrix.patch[i2] #write the territory number in matrix of males in this patch 
+        }#End individual's loop
+      }
+      #terr.matrix <- rbind(terr.matrix,male.matrix)#add the terr. number to matrix, combining both patches
+    }#End patch loop
+    #N.male$terr <- terr.matrix #territories written into (whole) male matrix 
+  }
+  return(N.male)
+}
+
+
+fight.function <- function(territories, N.male, patches){ #MALES FIGHT DEPENDING ON THEIR QUALITY TRAIT AND OBTAIN TERRITORY
+  for(p3 in 1:patches){ #go through all patches again
+    male.matrix <- c()
+    for(t in 1:territories){ #loop over all territory numbers (1-50)
+      matrix.terr <- N.male[which(N.male[,"terr"]==t),]
+      if(nrow(matrix.terr)>=2){
+        winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
+        matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
+        for (i4 in 1:nrow(matrix.terr)){
+          matrix.terr$terr[i4] <- NA #All males that did not win get NA 
+        }
+        male.matrix <- rbind(male.matrix, winner, matrix.terr)
+      }
+      else{ #What happens when there is just one male (or zero) with this territory number? 
+        winner <- N.male[which(N.male[,"terr"]==t),] #He "wins" and is added to matrix
+        male.matrix <- rbind(male.matrix, winner) 
+      }
+    }#End territory loop
+  }#End patch loop
+  N.male <- male.matrix
+  return(N.male)
+}
+
   
 statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
     tmp <- aggregate(pop.matrix$trait,by=list(patch = pop.matrix$patch),mean)
@@ -121,8 +164,9 @@ for(r in 1:replicates){
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
       patch.last.year <- ceiling(runif(patchx.N, min=0, max=2)) #generates randomly ID of last years patch for each individual (patch 1 or 2)
       no.offspring <- c(rep(0,patchx.N)) #no offspring in first generation, will be filled with males success/offspring from last year
+      terr <- c(rep(NA, patchx.N)) #here the obtained territory is stored, emptied every t
       
-      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch.last.year, no.offspring) #the dataframe is constructed for each patch including all vectors which where defined just before
+      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch.last.year, no.offspring, terr) #the dataframe is constructed for each patch including all vectors which where defined just before
       population.total <- rbind(population.total,patchx)  #data frame including all individuals of all patches (the dataframe of a patch is included in the population matrix)
     }
     
@@ -173,6 +217,16 @@ for(r in 1:replicates){
         ##### MALE CHOICE END #####
         
         ##### MALE COMPETITION - HOW MANY TERRITORIES #####
+        population.total$terr <- c(rep(NA, nrow(population.total))) #empty territory vector for all indivduals, every t
+        terrbook_males <- c()
+        N.male <- territory.fun(N.male, patches, population.males, territories)
+        terrbook_males <- N.male$terr
+        population.total[population.total$gender=='male',]$terr <- terrbook_males #Here males have their territory, next they fight
+        terrbook_males <- c()
+        N.male <- fight.function(territories, N.male, patches)
+        terrbook_males <- N.male$terr
+        population.total[population.total$gender=='male',]$terr <- terrbook_males #Now males have their final obtained territory for this t
+        
         #no.territories <- rpois(nrow(N.male),fitness.fun(a,b,N.male$trait,N.0,N.local[N.male$patch]))
         #depending on fitness (use function fitness.fun), the higher fitness, the more territory? Random number of territories or sizes?
         
@@ -266,9 +320,10 @@ for(r in 1:replicates){
             survival.offspring <- c(rep(age,length(patchbook))) #each offspring gets the survival of the age limit pre defined
             gender.offspring <- genderbook #genders of the offspring are written into the matrix
             patch.offspring <- patchbook #patches of offspring are written into the matrix
-            no.offspring.offspring <-  c(rep(0,length(patchbook)))
-            population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, no.offspring.offspring) #a new dataframe is made for the offspring of this generation
-            colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "no.offspring") #column names of the dataframe
+            no.offspring.offspring <-  c(rep(0,length(patchbook))) #empty column for the subsequent offspring they will get
+            terr.offspring <- c(rep(NA, length(patchbook))) #empty column for subsequent territory
+            population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, no.offspring.offspring, terr.offspring) #a new dataframe is made for the offspring of this generation
+            colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "no.offspring","terr") #column names of the dataframe
             loci.offspring[,21] <- ID.offspring #the ID of the offspring is written into the matrix of the locis of the offspring
             
             population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring,loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
