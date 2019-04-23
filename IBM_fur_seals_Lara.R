@@ -9,10 +9,10 @@ simulation.fun <- function(replicates=1, #number of replicates
                            migrate=0.05, #migrationfactor
                            age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
-                           territories=50, #number of territories per patch
+                           territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
                            die=0.05, #level.vector to die
-                           
+                           die.fight=0.25, #propability to die from fight
                            #fecundity
                            a=0.49649467,
                            b=1.47718931,
@@ -25,7 +25,9 @@ simulation.fun <- function(replicates=1, #number of replicates
                            c7=-20.88383990,
                            c8=-0.66263785,
                            c9=2.39334027,
-                           c10=0.11670283
+                           c10=0.11670283,
+                           i=0, #intercept for infanticide function
+                           s=0.5 #slope for infanticide function
 ){
 switch(Sys.info()['user'],
          Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")})
@@ -78,50 +80,60 @@ choice.fun <- function(population.males, population.total, N.male){
   return(N.male) #New patch is written into patch column in male matrix
 }
 
-territory.fun <- function(N.male, patches, population.males, territories){ #MALES GO TO RANDOM TERRITORY
-  if(nrow(N.male)>0){
-    terr.matrix <- c() #store territory number
+
+competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
+  ### 1.) Males choose their territory in this patch
+  
+  if(nrow(N.male)>0){ #Are their any males?
+    terr.matrix <- c() #for storing the territory number
     for(p2 in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
-      if(nrow(N.male[N.male$patch==p2,])>0){ #Just do this when at least one male is in the patch
-        #N.male.patches <- N.male[N.male$patch==p2,] #create matrix with just the males in this patch
-        terr.matrix.patch <- matrix(NA,nrow(N.male[N.male$patch==p2,]),ncol=1) #matrix for territories obtained (just for males in these patch)
+      if(nrow(N.male[N.male$patch==p2,])>0){ #Are their any males in the patch
+        terr.matrix.patch <- matrix(0,nrow(N.male[N.male$patch==p2,]),ncol=1) #matrix for territories obtained (just for males in these patch)
         for(i2 in 1:length(terr.matrix.patch)){ #go through all males 
-          terr.matrix.patch[i2] <- sample(territories, 1) #randomly decide which territory male goes to
+          terr.matrix.patch[i2] <- sample(territories[p2], 1) #randomly decide which territory male goes to
           N.male[N.male$patch==p2,]$terr[i2] <- terr.matrix.patch[i2] #write the territory number in matrix of males in this patch 
         }#End individual's loop
       }
-      #terr.matrix <- rbind(terr.matrix,male.matrix)#add the terr. number to matrix, combining both patches
-    }#End patch loop
-    #N.male$terr <- terr.matrix #territories written into (whole) male matrix 
-  }
-  return(N.male)
-}
-
-
-fight.function <- function(territories, N.male, patches){ #MALES FIGHT DEPENDING ON THEIR QUALITY TRAIT AND OBTAIN TERRITORY
-  for(p3 in 1:patches){ #go through all patches again
-    male.matrix <- c()
-    for(t in 1:territories){ #loop over all territory numbers (1-50)
-      matrix.terr <- N.male[which(N.male[,"terr"]==t),]
-      if(nrow(matrix.terr)>=2){
+    }#End 1.) patch loop
+  }#End 1) Step
+  
+  ### 2) Males compete for their territory - the one with highest quality obtains it
+  
+  for(p3 in 1:patches){ #Go again trough all patches
+    male.matrix <- c() #here the males infos (with obtained territories) are stored
+    for(t in 1:territories[p3]){ #loop over all territory numbers (1-50)
+      matrix.terr <- N.male[which(N.male[,"terr"]==t),] #Choose all males in this particular territory (as matrix)
+      if(nrow(matrix.terr)>=2){ #If there are at least two in the territory...
         winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
         matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
-        for (i4 in 1:nrow(matrix.terr)){
-          matrix.terr$terr[i4] <- NA #All males that did not win get NA 
+        for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to NA
+          matrix.terr$terr[i4] <- 0
         }
-        male.matrix <- rbind(male.matrix, winner, matrix.terr)
+        male.matrix <- rbind(male.matrix, winner, matrix.terr) #Safe new info in matrix 
       }
       else{ #What happens when there is just one male (or zero) with this territory number? 
         winner <- N.male[which(N.male[,"terr"]==t),] #He "wins" and is added to matrix
         male.matrix <- rbind(male.matrix, winner) 
       }
     }#End territory loop
-  }#End patch loop
+  }#End 2) step
+  
   N.male <- male.matrix
   return(N.male)
+  
 }
 
-  
+
+infanticide.fun <- function(population.offspring, population.total, territories, i, s){ #determines mortality of new born offspring dependend on patch density (mortality higher with higher density)
+  infanticide.vector <- c(rep(NA,patches))
+  for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
+    y=i+s*plogis((nrow(population.offspring[population.offspring$patch==p4,])/territories[p4])/25) #mortality is created
+    infanticide.vector[p4] <- y #safed in vector 
+  } 
+  return(infanticide.vector)
+}
+
+
 statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
     tmp <- aggregate(pop.matrix$trait,by=list(patch = pop.matrix$patch),mean)
     traits <- tmp$x[match(1:Npatch,tmp$patch)] 
@@ -202,7 +214,6 @@ for(r in 1:replicates){
       
       if(N>0) { #START IS ANYBODY THERE-LOOP: if there are any individuals and the population is not extinct 
         N.local <- c() #empty vector for local populationsize
-        N.female <- subset(population.total,population.total$gender=="female") #number of female individuals in total
         N.male <- subset(population.total,population.total$gender=="male") #number of male individuals in total
         population.males <- nrow(N.male) #number of male individuals
         level.vector <- c() #empty vector
@@ -210,31 +221,47 @@ for(r in 1:replicates){
         ##### MALE PATCH CHOICE - WHICH PATCH THEY GO #####
         patchbook_males <- c()
         N.male <- choice.fun(population.males, population.total, N.male) #Males decide where to go this year depending on last years success
-        N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
         patchbook_males <- N.male$patch #overwrite patch from previous year
         population.total[population.total$gender=='male',]$patch <- patchbook_males
         
         ##### MALE CHOICE END #####
         
         ##### MALE COMPETITION - HOW MANY TERRITORIES #####
-        population.total$terr <- c(rep(NA, nrow(population.total))) #empty territory vector for all indivduals, every t
+        population.total$terr <- c(rep(0, nrow(population.total))) #empty territory vector for all indivduals, every t
         terrbook_males <- c()
-        N.male <- territory.fun(N.male, patches, population.males, territories)
+        N.male <- competition.fun(N.male, patches, population.males, territories) #territories are obtained after competition of males 
         terrbook_males <- N.male$terr
-        population.total[population.total$gender=='male',]$terr <- terrbook_males #Here males have their territory, next they fight
-        terrbook_males <- c()
-        N.male <- fight.function(territories, N.male, patches)
-        terrbook_males <- N.male$terr
-        population.total[population.total$gender=='male',]$terr <- terrbook_males #Now males have their final obtained territory for this t
+        population.total[population.total$gender=='male',]$terr <- terrbook_males #obtained territories of "winners" are written into pop.matrix
         
-        #no.territories <- rpois(nrow(N.male),fitness.fun(a,b,N.male$trait,N.0,N.local[N.male$patch]))
-        #depending on fitness (use function fitness.fun), the higher fitness, the more territory? Random number of territories or sizes?
+        #All males that lost territory competition have certain mortality:
+        dying.males <- matrix(NA,nrow(population.total[population.total$gender=="male"&population.total$terr==0,]),ncol=2) #empty matrix for all losers
+        dying.males[,2] <- runif(nrow(population.total[population.total$gender=="male"&population.total$terr==0,]),0,1) < die.fight #for each individual is a random number distributed. if the number is below the deathrate a true is written into the vector + ID
+        dying.males[,1] <- population.total[population.total$gender=="male"&population.total$terr==0,]$ID #IDS of the males are written here 
+        dying.males.ID <- c()
+        dying.males.ID <- dying.males[,1][dying.males[,2]==1] #IDs of the males that died are stored
+        for(d2 in dying.males.ID){ #go trough the died males and change survival number and the loci matrix 
+          population.total[population.total$ID==d2,]$survival <- 0
+          loci.total[loci.total[,21]==d2][1] <- -2 
+        }
+        
+        #Update all population info after males died 
+        loci.total <- subset(loci.total,loci.total[,1]>(-2 )) #loci matrix: all rows with a -2 in the beginning are deleted
+        population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
+        N.male <- subset(population.total,population.total$gender=="male") 
+        N <- nrow(population.total)
+        N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
+        
+        # 2. Competition starts: Any leftover males change beach and fight for territories against the other males 
+        
+        
         
         ##### COMPETITION END #####
         
         ### FEMALE PATCH CHOICE ### After male patch and territory decision, because females arrive afterwards in nature
+        #patchbook_females <- c() #empty vector for patch females go - WRITE IT IN LATER!
+        N.female <- subset(population.total,population.total$gender=="female") #number of female individuals in total
         N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
-        #go where males are (depending on quality)
+        #depending on previous density (from last year) and the fitness of existing males?
         
         ### FEMALE CHOICE END ###
 
@@ -390,11 +417,13 @@ par(mai=rep(0.8,4.5))
 
 colours <- c("goldenrod1","deepskyblue") #first = patch 1, second = patch 2
   
-#First plot: DENSITY - mean population sizes over time/per patch
-plot(meanpopulationsize.replicates/territories,main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories))) 
+#First plot: DENSITY - mean population sizes over time/per patch (Check if that is right with territories[])
+i <- c(1,2)
+plot(meanpopulationsize.replicates/territories[],main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories[]))) 
   for(ink in 1:patches){
-    lines(meanN.patches.replicates[ink,]/territories,type="l",col=colours[ink])
-  }
+    lines(meanN.patches.replicates[ink,]/territories[ink],type="l",col=colours[ink])
+  #}
+}
   
 #Second plot: MALE QUALITY - average trait value over time/per patch 
 plot(meantrait.males.replicates,main="Average male quality over time", xlab="Time",ylab="Mean Quality Trait",col="white",type="l",ylim = c(min(meanquality.patches.replicates),max(meanquality.patches.replicates)))
