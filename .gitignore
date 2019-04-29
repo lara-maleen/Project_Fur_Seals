@@ -1,3 +1,4 @@
 #ignore Rhistory file in Github
 *.Rhistory 
 .Rhistory
+growth-rate.gen
