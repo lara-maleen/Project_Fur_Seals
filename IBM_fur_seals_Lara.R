@@ -53,9 +53,9 @@ trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUN
     value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
     for(y in 1:row){ #for each individual
       for(z in 1:10){ 
-        value.matrix[y,z] <- 1+2*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
+        value.matrix[y,z] <- 1000*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
       }
-      pop.matrix[y,4] <- abs(sum(value.matrix[y,]))
+      pop.matrix[y,4] <- abs(sum(value.matrix[y,]))+1
     }
     return(pop.matrix)
 }
@@ -191,6 +191,7 @@ for(r in 1:replicates){
    
     population <- nrow(population.total) #number of individuals
     loci.total <- matrix(NA,nrow=population,ncol=20+1) #empty matrix for the locis (20 numbers) and the ID of the individual (+1 number)
+    #loser.matrix <- c() #empty loser matrix 
     
     for(x in 1:population){ #LOOP OVER THE INDIVIDUALS
       loci.total[x,] <- ceiling(runif(21,1e-16,10)) #each individual has 20 random numbers (first 10:row //last 10:column)
@@ -201,6 +202,7 @@ for(r in 1:replicates){
     
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
+      #population.total <- rbind(population.total, loser.matrix) #include losers from last year again in pop matrix
       N <- nrow(population.total) #number of individuals in total (all patches included)
       
       if(N>0) { #START IS ANYBODY THERE-LOOP: if there are any individuals and the population is not extinct 
@@ -236,7 +238,7 @@ for(r in 1:replicates){
         }
         
         #Update all population info after males died 
-        #loci.total <- subset(loci.total,loci.total[,1]>(-2 )) #loci matrix: all rows with a -2 in the beginning are deleted
+        loci.total <- subset(loci.total,loci.total[,1]>(-2 )) #loci matrix: all rows with a -2 in the beginning are deleted
         population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
         N.male <- subset(population.total,population.total$gender=="male") 
         N <- nrow(population.total)
@@ -282,11 +284,14 @@ for(r in 1:replicates){
         #}
         
         #Update the population matrix
-        #loci.total <- subset(loci.total,loci.total[,1]>(-2 )) #loci matrix: all rows with a -2 in the beginning are deleted
-        #population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
+         #population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
+       
+        #loser.matrix <- subset(population.total,population.total$terr==0&population.total$gender=="male") #store the loser males in a matrix, they will be included in pop matrix next t again
+        #population.total <- rbind(subset(population.total,population.total$terr>0),subset(population.total,population.total$gender=="female")) #Exclude losers from population.matrix, as they don't reproduce
         #N.male <- subset(population.total,population.total$gender=="male") 
         #N <- nrow(population.total)
         #N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
+        #loci.total <- subset(loci.total,loci.total[,1]>(-2)) #loci matrix: all rows with a -2 in the beginning are deleted
         
         ##### COMPETITION END #####
         
@@ -470,9 +475,9 @@ par(mai=rep(0.8,4.5))
 
 colours <- c("goldenrod1","deepskyblue") #first = patch 1, second = patch 2
   
-#First plot: DENSITY - mean population sizes over time/per patch (50 stands for number of territores, has to be changed to territories[], to make it variable...)
+#First plot: DENSITY - mean population sizes over time/per patch 
 i <- c(1,2)
-plot(meanpopulationsize.replicates/50,main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/territories[]))) 
+plot(meanpopulationsize.replicates/min(territories),main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/min(territories)))) 
   for(ink in 1:patches){
     lines(meanN.patches.replicates[ink,]/territories[ink],type="l",col=colours[ink])
   #}
