@@ -30,7 +30,8 @@ simulation.fun <- function(replicates=1, #number of replicates
                            s=0.5 #slope for infanticide function
 ){
 switch(Sys.info()['user'],
-         Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")})
+         Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
+        koen = {setwd("/home/koen/Documents/projects/Project_Fur_Seals/")})
   
 source('Gene_generator.R')
   
@@ -48,14 +49,13 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     return(ID.offspring)
 }
   
-  
 trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
     value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
     for(y in 1:row){ #for each individual
       for(z in 1:10){ 
-        value.matrix[y,z] <- 1+2*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
+        value.matrix[y,z] <- 1000*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
       }
-      pop.matrix[y,4] <- abs(sum(value.matrix[y,]))
+      pop.matrix[y,4] <- 10+abs(sum(value.matrix[y,]))
     }
     return(pop.matrix)
 }
