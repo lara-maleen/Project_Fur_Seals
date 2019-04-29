@@ -30,7 +30,8 @@ simulation.fun <- function(replicates=1, #number of replicates
                            s=0.5 #slope for infanticide function
 ){
 switch(Sys.info()['user'],
-         Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")})
+         Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
+        koen = {setwd("/home/koen/Documents/projects/Project_Fur_Seals/")})
   
 source('Gene_generator.R')
   
@@ -47,7 +48,6 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     ID.scan <<- ID.scan + sum(offspring.vector)
     return(ID.offspring)
 }
-  
   
 trait.fun <- function(row,pop.matrix,value.matrix,loci.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
     value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci

@@ -2,3 +2,5 @@
 *.Rhistory 
 .Rhistory
 growth-rate.gen
+*.gen
+
