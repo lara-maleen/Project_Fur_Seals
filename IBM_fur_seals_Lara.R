@@ -5,7 +5,7 @@ rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
 simulation.fun <- function(replicates=1, #number of replicates
-                           time=10, #number of generations
+                           time=15, #number of generations
                            migrate=0.05, #migrationfactor
                            age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
@@ -50,9 +50,8 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     return(ID.offspring)
 }
   
-trait.fun <- function(row,pop.matrix,value.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
+trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
   value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
-  loci.matrix <- population.total[,loci.col] #get all loci from pop matrix 
   for(y in 1:row){ #for each individual
     for(z in 1:10){ 
       value.matrix[y,z] <- 1000*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
@@ -61,7 +60,6 @@ trait.fun <- function(row,pop.matrix,value.matrix){ #TRAIT-VALUE-FUNCTION - used
   }
   return(pop.matrix)
 }
-
 
 choice.fun <- function(population.males, population.total, N.male){
   decision.matrix <- matrix(NA,nrow=population.males,ncol=1)
@@ -113,7 +111,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         }
         male.matrix2 <- rbind(male.matrix2, winner, matrix.terr) #Safe new info in matrix 
       }
-      else{ #What happens when there is just one male (or zero) with this territory number? 
+      else{ #What happens when there is just one male (or zero) in this territory? 
         winner <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #He "wins" and is added to matrix
         male.matrix2 <- rbind(male.matrix2, winner) 
       }
@@ -202,11 +200,11 @@ for(r in 1:replicates){
       population.total[x,loci.col] <- ceiling(runif(20,1e-16,10)) #each individual has 20 random numbers (first 10:row //last 10:column)
     }
     
-    population.total <- trait.fun(population,population.total,values.population) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
+    population.total <- trait.fun(population,population.total,values.population,loci.matrix) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
-      #population.total <- rbind(population.total, loser.matrix) #include losers from last year again in pop matrix
       N <- nrow(population.total) #number of individuals in total (all patches included)
       
       if(N>0) { #START IS ANYBODY THERE-LOOP: if there are any individuals and the population is not extinct 
@@ -227,6 +225,7 @@ for(r in 1:replicates){
         population.total$terr <- c(rep(0, nrow(population.total))) #empty territory vector for all indivduals, every t
         terrbook_males <- c()
         N.male <- competition.fun(N.male, patches, population.males, territories) #territories are obtained after competition of males 
+        N.male <- N.male[order(N.male$ID),]
         terrbook_males <- N.male$terr
         population.total[population.total$gender=='male',]$terr <- terrbook_males #obtained territories of "winners" are written into pop.matrix
         
@@ -392,9 +391,9 @@ for(r in 1:replicates){
             terr.offspring <- c(rep(NA, length(patchbook))) #empty column for subsequent territory
             population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring) #a new dataframe is made for the offspring of this generation
             colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr") #column names of the dataframe
-          
-            population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+            
             population.offspring <- cbind(population.offspring, loci.offspring)
+            population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
             
             #INFATICIDE: Let offspring die with mortality depending on patch density
             infanticide.vector <- c(rep(NA,patches))
@@ -493,5 +492,6 @@ legend(x="center", ncol=2,legend=c("Patch I","Patch II"), fill=c("goldenrod1","d
 }#END SIMULATION.RUN
 
 #Run function 
-undebug(simulation.fun)
+debug(simulation.fun)
 simulation.fun()
+
