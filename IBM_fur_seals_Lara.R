@@ -80,7 +80,7 @@ choice.fun <- function(population.males, population.total, N.male){
   return(N.male) #New patch is written into patch column in male matrix
 }
 
-#Problem with the data frame (in first step. Always less data?)
+
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
   
   ### 1.) Males choose their territory in this patch
