@@ -80,21 +80,20 @@ choice.fun <- function(population.males, population.total, N.male){
   return(N.male) #New patch is written into patch column in male matrix
 }
 
-
+#Problem with the data frame (in first step. Always less data?)
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
+  
   ### 1.) Males choose their territory in this patch
-  if(nrow(N.male)>0){ #Are their any males?
-    terr.matrix <- c() #for storing the territory number
-    for(p2 in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
-      if(nrow(N.male[N.male$patch==p2,])>0){ #Are their any males in the patch
-        terr.matrix.patch <- matrix(0,nrow(N.male[N.male$patch==p2,]),ncol=1) #matrix for territories obtained (just for males in these patch)
-        for(i2 in 1:length(terr.matrix.patch)){ #go through all males 
-          terr.matrix.patch[i2] <- sample(territories[p2], 1) #randomly decide which territory male goes to
-          N.male[N.male$patch==p2,]$terr[i2] <- terr.matrix.patch[i2] #write the territory number in matrix of males in this patch 
-        }#End individual's loop
-      }
-    }#End 1.) patch loop
-  }#End 1) Step
+  for(p2 in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
+    if(nrow(N.male[N.male$patch==p2&N.male$terr==0,])>0){ #Are their any males in the patch (with no territory yet)
+      ID.terr.males <- matrix(NA, nrow=nrow(N.male[N.male$patch==p2&N.male$terr==0,]), ncol=2)
+      ID.terr.males[,1] <- N.male[N.male$patch==p2&N.male$terr==0,]$ID #get IDs of males that have no territory yet
+      for(i2 in 1:nrow(ID.terr.males)){ #go through all males 
+        ID.terr.males[i2,2] <- sample(territories[p2], 1) #randomly decide which territory male goes to
+        N.male[N.male$ID==ID.terr.males[i2,1],]$terr <- ID.terr.males[i2,2] #write the territory number in matrix of males in this patch 
+      }#End individual's loop
+    }
+  }#End 1.) patch loop
   
   ### 2) Males compete for their territory - the one with highest quality obtains it
   
@@ -166,7 +165,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
       patch.last.year <- ceiling(runif(patchx.N, min=0, max=2)) #generates randomly ID of last years patch for each individual (patch 1 or 2)
       nr.offspring <- c(rep(0,patchx.N)) #number of offspring in first generation, will be filled with males success/offspring from last year
-      terr <- c(rep(NA, patchx.N)) #here the obtained territory is stored, emptied every t
+      terr <- c(rep(0, patchx.N)) #here the obtained territory is stored, emptied every t
       repro <- c(rep(0, patchx.N)) #decision stored if male can reproduce this t or not (1=True, 0=False)
       loci <- c(1:20) #empty space for loci (nr of loci=20)
       
@@ -213,10 +212,11 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         
         population.total[population.total$gender=="female",]$repro <- 1 #all females are able to reproduce
         population.total[population.total$survival<2&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+        population.total[population.total$survival>=2&population.total$gender=="male",]$repro <- 0 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
         
         ##### 
         
-        N.male <- subset(population.total,population.total$gender=="male") #number of male individuals in total
+        N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) #number of male individuals in total
         population.males <- nrow(N.male) #number of male individuals
         level.vector <- c() #empty vector
         
@@ -224,15 +224,13 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         patchbook_males <- c()
         N.male <- choice.fun(population.males, population.total, N.male) #Males decide where to go this year depending on last years success
         patchbook_males <- N.male$patch #overwrite patch from previous year
-        population.total[population.total$gender=='male',]$patch <- patchbook_males
+        population.total[population.total$gender=='male'&population.total$repro==1,]$patch <- patchbook_males
         
         ##### MALE PATCH CHOICE END #####
         
         ##### MALE COMPETITION - HOW MANY TERRITORIES #####
         population.total$terr <- c(rep(0, nrow(population.total))) #empty territory vector for all indivduals, every t
         terrbook_males <- c()
-        N.male <- N.male[N.male$repro==1,] #just use males that are able to compete/reproduce 
-        population.males <- nrow(N.male) #number of male individuals
         N.male <- competition.fun(N.male, patches, population.males, territories) #territories are obtained after competition of males 
         N.male <- N.male[order(N.male$ID),]
         terrbook_males <- N.male$terr
@@ -254,11 +252,13 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         N <- nrow(population.total)
         N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
         
+        
         ##### MALE COMPETITION - FIGHT FOR TERRITORIES II - Remaining males #####
         
         #Let males that lost in previous fight switch to other patch
         #Alternative: N.male[N.male$terr==0,]$patch <- round(runif(1,1,patches)) #how the exclude the existing patch?
         
+        patchbook_males <- c()
         decision.matrix <- matrix(NA,nrow(N.male),ncol=1)
         for(i3 in 1:nrow(N.male)){ #for each male
           if (N.male$terr[i3]>0){ #If reproductive success is equal or greater than total pop average than patch stays the same (from last year)
@@ -272,44 +272,41 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
               decision.matrix[i3] <- 1
             }
           }
-          N.male[i3,2] <- decision.matrix[i3]
+          N.male[i3,2] <- decision.matrix[i3] #the new patch is stored in male matrix
         }
         
-        #Males choose their territory again, fight again (also with existing male) !NOT WORKING YET
+        patchbook_males <- N.male$patch 
+        population.total[population.total$gender=='male'&population.total$repro==1,]$patch <- patchbook_males #overwrite patch choice from before 
         
-        #terrbook_males <- c()
-        #N.male <- competition.fun(N.male, patches, population.males, territories) 
-        #terrbook_males <- N.male$terr
-        #population.total[population.total$gender=='male',]$terr <- terrbook_males
+        #Males choose their territory again, fight again !NOT WORKING YET
+        
+        terrbook_males <- c()
+        N.male <- competition.fun(N.male, patches, population.males, territories) 
+        terrbook_males <- N.male$terr
+        population.total[population.total$gender=='male'&population.total$repro==1,]$terr <- terrbook_males
         
         #All males that lost territory competition have certain mortality:
-        #dying.males <- matrix(NA,nrow(population.total[population.total$gender=="male"&population.total$terr==0,]),ncol=2)
-        #dying.males[,2] <- runif(nrow(population.total[population.total$gender=="male"&population.total$terr==0,]),0,1) < die.fight #for each individual is a random number distributed. if the number is below the deathrate the individual is written into a vector
-        #dying.males[,1] <- population.total[population.total$gender=="male"&population.total$terr==0,]$ID
-        #dying.males.ID <- c()
-        #dying.males.ID <- dying.males[,1][dying.males[,2]==1]
-        #for(d2 in dying.males.ID){
-        # population.total[population.total$ID==d2,]$survival <- 0
-        #loci.total[loci.total[,21]==d2][1] <- -2 
-        #}
+        dying.males <- matrix(NA,nrow(population.total[population.total$gender=="male"&population.total$terr==0&population.total$repro==1,]),ncol=2) #empty matrix for all losers
+        dying.males[,2] <- runif(nrow(population.total[population.total$gender=="male"&population.total$terr==0&population.total$repro==1,]),0,1) < die.fight #for each individual is a random number distributed. if the number is below the deathrate a true is written into the vector + ID
+        dying.males[,1] <- population.total[population.total$gender=="male"&population.total$terr==0&population.total$repro==1,]$ID #IDS of the males are written here 
+        dying.males.ID <- c()
+        dying.males.ID <- dying.males[,1][dying.males[,2]==1] #IDs of the males that died are stored
+        for(d2 in dying.males.ID){ #go trough the died males and change survival number and the loci matrix 
+          population.total[population.total$ID==d2,]$survival <- 0
+        }
         
-        #Update the population matrix
-        #population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
-        
-        #loser.matrix <- subset(population.total,population.total$terr==0&population.total$gender=="male") #store the loser males in a matrix, they will be included in pop matrix next t again
-        #population.total <- rbind(subset(population.total,population.total$terr>0),subset(population.total,population.total$gender=="female")) #Exclude losers from population.matrix, as they don't reproduce
-        #N.male <- subset(population.total,population.total$gender=="male") 
-        #N <- nrow(population.total)
-        #N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
-        #loci.total <- subset(loci.total,loci.total[,1]>(-2)) #loci matrix: all rows with a -2 in the beginning are deleted
-        
+        #Update all population info after males died 
+        population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
+        N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1)
+        N <- nrow(population.total)
+        N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
         
         ##### CHOOSE MALES FOR REPRODUCTION ####
         
         population.total[population.total$terr>0&population.total$gender=="male",]$repro <- 1 #males that obtained territory during competition are able to reproduce
+        population.total[population.total$terr==0&population.total$gender=="male",]$repro <- 0 #males that obtained territory during competition are able to reproduce
         N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) #change male matrix 
         N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
-        
         
         ##### COMPETITION END #####
         
@@ -405,7 +402,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
             gender.offspring <- genderbook #genders of the offspring are written into the matrix
             patch.offspring <- patchbook #patches of offspring are written into the matrix
             nr.offspring.offspring <-  c(rep(0,length(patchbook))) #empty column for the subsequent offspring they will get
-            terr.offspring <- c(rep(NA, length(patchbook))) #empty column for subsequent territory
+            terr.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent territory
             repro.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent decision for reproduction in t
             population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring, repro.offspring) #a new dataframe is made for the offspring of this generation
             colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro") #column names of the dataframe
