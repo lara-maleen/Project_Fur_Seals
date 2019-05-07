@@ -5,7 +5,7 @@ rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
 simulation.fun <- function(replicates=1, #number of replicates
-                           time=15, #number of generations
+                           time=20, #number of generations
                            migrate=0.05, #migrationfactor
                            age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
@@ -124,17 +124,19 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 }
 
 
-statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
+statistic.fun <- function(pop.matrix, Npatch, density.vector){ #PATCH/STATISTIC-FUNCTION
     tmp <- aggregate(pop.matrix$trait,by=list(patch = pop.matrix$patch),mean)
     traits <- tmp$x[match(1:Npatch,tmp$patch)] 
     
     cbind(table(factor(pop.matrix$patch,levels=1:Npatch)),
           table(factor(pop.matrix[pop.matrix$gender=='male',]$patch,levels=1:Npatch)),
           table(factor(pop.matrix[pop.matrix$gender=='female',]$patch,levels=1:Npatch)),
+          density.vector,
           as.numeric(traits))
 }
   
-##### MATRICES FOR PLOTS ##### with 100 spaces for mean values (1 replicat, 100 years (time))
+##### MATRICES FOR PLOTS #####
+
   meantrait.matrix <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean trait value of the generations in each replicate
   meanpopulation.matrix <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean populationsize of the generations in each replicate
   meantrait.matrix.males <- matrix(NA, nrow=replicates, ncol=time) #empty matrix for the mean male quality trait value of the generations in each replicate
@@ -142,6 +144,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
   meanM.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the populationsize of males of a patch of the generations in each replicate
   meanF.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the populationsize of females of a patch of the generations in each replicate
   meanquality.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the quality of males of a patch of the generations in each replicate
+  meandensity.patches.array <- array(NA,dim=c(patches,time,replicates)) #empty array for the density of a patch of the generations in each replicate
   
 ##### REPLICATION LOOP START#####
   
@@ -149,7 +152,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
     
     ##### INITIALISATION PATCHES #####
     population.total <- c() #empty vector for the population matrix
-    statistic.total <- array(NA,dim=c(patches,4,time)) #empty array for the statistics
+    statistic.total <- array(NA,dim=c(patches,5,time)) #empty array for the statistics
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
@@ -256,29 +259,16 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         ##### MALE COMPETITION - FIGHT FOR TERRITORIES II - Remaining males #####
         
         #Let males that lost in previous fight switch to other patch
-        #Alternative: N.male[N.male$terr==0,]$patch <- round(runif(1,1,patches)) #how the exclude the existing patch?
-        
-        patchbook_males <- c()
-        decision.matrix <- matrix(NA,nrow(N.male),ncol=1)
-        for(i3 in 1:nrow(N.male)){ #for each male
-          if (N.male$terr[i3]>0){ #If reproductive success is equal or greater than total pop average than patch stays the same (from last year)
-            decision.matrix[i3] <- N.male$patch[i3]
-          }
-          else{ #Otherwise the patch is changed in contrary patch 
-            if(N.male$patch[i3]==1){
-              decision.matrix[i3] <- 2
-            }
-            else{
-              decision.matrix[i3] <- 1
-            }
-          }
-          N.male[i3,2] <- decision.matrix[i3] #the new patch is stored in male matrix
+        males.patch.shift <- N.male[N.male$terr==0,]$ID #get the males that didnt obtain territory, they shift patches (ID is safed) 
+        for(i9 in 1:length(males.patch.shift)){
+        N.male[N.male$ID==males.patch.shift[i9],]$patch <- (N.male[N.male$ID==males.patch.shift[i9],]$patch - 1 + floor(runif(1,1,patches)))%%patches + 1
         }
         
+        patchbook_males <- c()
         patchbook_males <- N.male$patch 
         population.total[population.total$gender=='male'&population.total$repro==1,]$patch <- patchbook_males #overwrite patch choice from before 
         
-        #Males choose their territory again, fight again !NOT WORKING YET
+        #Males choose their territory again, fight again 
         
         terrbook_males <- c()
         N.male <- competition.fun(N.male, patches, population.males, territories) 
@@ -310,12 +300,11 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         
         ##### COMPETITION END #####
         
-        ### FEMALE PATCH CHOICE ### After male patch and territory decision, because females arrive afterwards in nature
-        #patchbook_females <- c() #empty vector for patch females go - WRITE IT IN LATER!
+        #### FEMALE PATCH CHOICE #### Not included yet -> They arrive randomly (patches randomly distributed over females - tendency to go to birthplace)
+        
         N.female <- subset(population.total,population.total$gender=="female") #number of female individuals in total
         N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
-        #depending on previous density (from last year) and the fitness of existing males?
-        
+       
         ### FEMALE CHOICE END ###
         
         for(pls in 1:patches){ #START IS OFFSPRING POSSIBLE?
@@ -451,7 +440,12 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
         population.meantrait[t] <- mean(population.total$trait)#trait.N1.vector[t] <- mean(pop$trait[pop$patch==1]) #overwrites the average trait-value for each generation in the empty vector
         population.meantrait.males[t] <- mean(population.total$trait[gender=="male"])#trait.N1.vector[t] <- mean(pop$trait[pop$patch==1]) #overwrites the average male quality trait-value for each generation in the empty vector
         
-        statistic.total[,,t] <- statistic.fun(population.total,patches) #fills the arry with the statistic: N-pop, m-pop, w-pop, mean trait
+        density.vector <- c()
+        for(p5 in 1:patches){
+          density.vector[p5] <- nrow(population.total[population.total$repro==1&population.total$patch==p5,])/territories[p5] #excludes new offspring (they have 0 in repro), counts females + males that obtained territory (divided trough territories = density) 
+        }
+        
+        statistic.total[,,t] <- statistic.fun(population.total,patches,density.vector) #fills the arry with the statistic: N-pop, m-pop, w-pop, mean trait
         ##### End Statistic 2#############
         
       }#END IS ANYBODY THERE? 
@@ -466,6 +460,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
       meanM.patches.array[pat,,r] <- statistic.total[pat,2,] #the populationsize of males of all generations of patch pat is written into an array for each replicate
       meanF.patches.array[pat,,r] <- statistic.total[pat,3,] #the populationsize of females of all generations of patch pat is written into an array for each replicate
       meanquality.patches.array[pat,,r] <- statistic.total[pat,4,] #the quality of males of all generations of patch pat is written into an array for each replicate
+      meandensity.patches.array[pat,,r] <- statistic.total[pat,5,] #the density of all generations of patch pat is written into an array for each replicate
     }
     
 }##### END REPLICATION LOOP #####
@@ -476,6 +471,7 @@ statistic.fun <- function(pop.matrix, Npatch){ #PATCH/STATISTIC-FUNCTION
   meanM.patches.replicates <- rowMeans(meanM.patches.array, dims=2) #calculates the mean populationsize of male of a generation of a patch over all replicates
   meanF.patches.replicates <- rowMeans(meanF.patches.array, dims=2) #calculates the mean populationsize of female of a generation of a patch over all replicates
   meanquality.patches.replicates <- rowMeans(meanquality.patches.array, dims=2) #calculates the mean quality of males in a generation of a patch over all replicates
+  meandensity.patches.replicates <- rowMeans(meandensity.patches.array, dims=2) #calculates the mean density in a generation of a patch over all replicates
   #})
   
 ##### PLOTS #####
@@ -485,11 +481,10 @@ par(mai=rep(0.8,4.5))
 colours <- c("goldenrod1","deepskyblue") #first = patch 1, second = patch 2
   
 #First plot: DENSITY - mean population sizes over time/per patch 
-i <- c(1,2)
-plot(meanpopulationsize.replicates/min(territories),main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(0,max(meanN.patches.replicates/min(territories)))) 
+
+plot(meanpopulationsize.replicates/min(territories),main="Density over time", xlab="Time",ylab="Density",type="l",col="white",ylim =c(min(meandensity.patches.replicates),max(meandensity.patches.replicates))) 
   for(ink in 1:patches){
-    lines(meanN.patches.replicates[ink,]/territories[ink],type="l",col=colours[ink])
-  #}
+    lines(meandensity.patches.replicates[ink,],type="l",col=colours[ink])
 }
   
 #Second plot: MALE QUALITY - average trait value over time/per patch 
