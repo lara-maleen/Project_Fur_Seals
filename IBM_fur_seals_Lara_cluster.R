@@ -6,12 +6,12 @@ rm(list=ls())
 ##### START SIMULATION.RUN-FUNCTION #####
 simulation.fun <- function(time=20, #number of generations
                            migrate=0.05, #migrationfactor
-                           age=2, #age limit for an individual
+                           age=4, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           die=0.9, #level.vector to die
-                           die.fight=0.5, #propability to die from fight
+                           die=0.3, #level.vector to die
+                           die.fight=0.8, #propability to die from fight
                            loci.col=c(12:31), #in which columns of the pop matrix are the loci?
                            #fecundity
                            a=0.49649467,
@@ -26,8 +26,8 @@ simulation.fun <- function(time=20, #number of generations
                            c8=-0.66263785,
                            c9=2.39334027,
                            c10=0.11670283,
-                           i=0, #intercept for infanticide function
-                           s=0.5 #slope for infanticide function
+                           i=0.1, #intercept for infanticide function
+                           s=0.2 #slope for infanticide function
 ){
 switch(Sys.info()['user'],
          Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
@@ -412,7 +412,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
             
             infanticide.vector <- c(rep(NA,patches))
             for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
-              y=i+s*plogis((nrow(population.total[population.total$repro==1&population.total$patch==p4,])+nrow(population.total[population.total$survival==2&population.total$patch==p4,]))/territories[p4]) #mortality is created 
+              y=i+s*plogis(((nrow(population.total[population.total$repro==1&population.total$patch==p4,])+nrow(population.total[population.total$survival==2&population.total$patch==p4,]))/territories[p4])) #mortality is created 
               infanticide.vector[p4] <- y #safed in vector 
             }
             
@@ -466,13 +466,17 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
       }#END IS ANYBODY THERE? 
       print(t)
     }##### END GENERATION LOOP #####
-    statistic.matrix[is.na(statistic.matrix)] <- 0
+    
+    #Stored summary statistic formatted for output data
+    statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
     colnames(statistic.matrix) <- c("time","N","N1","N2","meantrait.males1","meantrait.males2","N.males1","N.males2", "N.females1", "N.females2") #column names of statistic store matrix
     return(statistic.matrix)
+    
 }#END SIMULATION.RUN
 
 #Run function 
-debug(simulation.fun)
+#debug(simulation.fun)
+
 statistic <- simulation.fun()
 
 
