@@ -5,14 +5,14 @@ rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
 simulation.fun <- function(replicates=1, #number of replicates
-                           time=20, #number of generations
+                           time=15, #number of generations
                            migrate=0.05, #migrationfactor
                            age=2, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
                            die=0.05, #level.vector to die
-                           die.fight=0.25, #propability to die from fight
+                           die.fight=0.5, #propability to die from fight
                            loci.col=c(12:31), #in which columns of the pop matrix are the loci?
                            #fecundity
                            a=0.49649467,
@@ -400,9 +400,10 @@ statistic.fun <- function(pop.matrix, Npatch, density.vector){ #PATCH/STATISTIC-
             population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
             
             #INFATICIDE: Let offspring die with mortality depending on patch density
+            
             infanticide.vector <- c(rep(NA,patches))
             for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
-              y=i+s*plogis((nrow(population.offspring[population.offspring$patch==p4,])/territories[p4])/25) #mortality is created 
+              y=i+s*plogis((nrow(population.total[population.total$repro==1&population.total$patch==p4,])+nrow(population.total[population.total$survival==2&population.total$patch==p4,]))/territories[p4]) #mortality is created 
               infanticide.vector[p4] <- y #safed in vector 
             }
             
@@ -442,7 +443,7 @@ statistic.fun <- function(pop.matrix, Npatch, density.vector){ #PATCH/STATISTIC-
         
         density.vector <- c()
         for(p5 in 1:patches){
-          density.vector[p5] <- nrow(population.total[population.total$repro==1&population.total$patch==p5,])/territories[p5] #excludes new offspring (they have 0 in repro), counts females + males that obtained territory (divided trough territories = density) 
+          density.vector[p5] <- nrow(population.total[population.total$repro==1&population.total$patch==p5,])+nrow(population.total[population.total$survival==2&population.total$patch==p5,])/territories[p5] #excludes new offspring (they have 0 in repro), counts females + males that obtained territory (divided trough territories = density) 
         }
         
         statistic.total[,,t] <- statistic.fun(population.total,patches,density.vector) #fills the arry with the statistic: N-pop, m-pop, w-pop, mean trait
