@@ -29,11 +29,8 @@ simulation.fun <- function(time=20, #number of generations
                            i=0.1, #intercept for infanticide function
                            s=0.2 #slope for infanticide function
 ){
-switch(Sys.info()['user'],
-         Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
-        koen = {setwd("/home/koen/Documents/projects/Project_Fur_Seals/")})
-  
-source('Gene_generator.R')
+
+source('C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/Gene_generator.R')
   
 ##### FUNCTIONS #####
 
@@ -125,7 +122,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 ##### INITIALISATION PATCHES #####
 
   population.total <- c() #empty vector for the population matrix
-  statistic.matrix <- matrix(ncol=10, nrow=time) #empty array for the statistics
+  statistic.matrix <- matrix(ncol=9, nrow=time) #empty array for the statistics
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
@@ -459,7 +456,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         population.females1[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==1,]) #Number of females in patch 1  for first generation
         population.females2[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==2,]) #Number of females in patch 2  for first generation
         
-        statistic.matrix[t,] <- cbind(t,population.N[t],population.N1[t],population.N2[t],population.meantrait1.males[t], population.meantrait2.males[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t] )
+        statistic.matrix[t,] <- cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1.males[t], population.meantrait2.males[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t] )
         
         ##### End Statistic 2#############
         
@@ -469,7 +466,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     
     #Stored summary statistic formatted for output data
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
-    colnames(statistic.matrix) <- c("time","N","N1","N2","meantrait.males1","meantrait.males2","N.males1","N.males2", "N.females1", "N.females2") #column names of statistic store matrix
+    colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","N.males1","N.males2", "N.females1", "N.females2") #column names of statistic store matrix
     return(statistic.matrix)
     
 }#END SIMULATION.RUN
@@ -477,6 +474,6 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 #Run function 
 #debug(simulation.fun)
 
-statistic <- simulation.fun()
+#statistic <- simulation.fun()
 
 
