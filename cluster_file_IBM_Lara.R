@@ -1,3 +1,4 @@
+
 ##Minimal Model IBM - Fur Seal Project 
 #Hypothesis 1: Marginal-Male Theory
 
@@ -59,4 +60,3 @@
     
     }
   
-
