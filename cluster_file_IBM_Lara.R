@@ -3,11 +3,12 @@
 #Hypothesis 1: Marginal-Male Theory
 
 #Parallel parameter value testing for cluster (use file: IBM_fur_seals_Lara_cluster.R)
+library(foreach)
+library(doMC)
+cores <- detectCores()
+registerDoMC(cores)
 
-
-  switch(Sys.info()['user'],
-       Lara = {setwd("C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/")},
-       koen = {setwd("/home/koen/Documents/projects/Project_Fur_Seals/")})
+setwd("/data/home/lara")
   
   source('IBM_fur_seals_Lara_cluster.R') #load in file with the IBM model (source for simulation.fun) 
   
@@ -28,11 +29,11 @@
   
   write.csv(df,file='00-param-overview.csv') #write a file with parameter values + file name to have an overview after run
   
-  for(i in 1:nrow(df)){ # I do it old-fashioned, but should be paralellized
+blabla <-  foreach(i = 1:nrow(df)) %dopar% {
     set.seed(df$seed[i])
     
     #... run the simulation function with the right parameter values
-    tmp <- simulation.fun(time = 10, #t  
+    tmp <- simulation.fun(time = 100, #t  
                           age = 5, 
                           patches = 2, #number of Patches (two different sites: high/low density)
                           territories = c(50,50), #number of territories per patch
@@ -40,23 +41,10 @@
                           die = df$die[i], #mortality rate 
                           die.fight = df$die.fight[i], #propability to die from fight
                           loci.col = c(12:31), #in which columns of the pop matrix are the loci?
-                          #fecundity
-                          a=0.49649467,
-                          b=1.47718931,
-                          c1=0.72415095,
-                          c2=-0.24464625,
-                          c3=0.99490196,
-                          c4=-1.31337296,
-                          c5=-0.06855583,
-                          c6 = 0.32833236,
-                          c7=-20.88383990,
-                          c8=-0.66263785,
-                          c9=2.39334027,
-                          c10=0.11670283,
                           i = 0.1, #intercept for infanticide function
                           s = 0.2)
     
     write.csv(tmp, file=df$filename[i])
-    
+    return(NULL)
     }
   
