@@ -4,21 +4,22 @@
 rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
-simulation.fun <- function(time=50, #number of generations
+simulation.fun <- function(time=10, #number of generations
                            age=8, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           die=0.1, #level.vector to die
+                           die=0.05, #level.vector to die
                            die.fight=0.3, #propability to die from fight
                            loci.col=c(12:31), #in which columns of the pop matrix are the loci?
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
 
-source('C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/Gene_generator.R')
+#source('C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/genes.R')
 #source('/data/home/lara/fur_seals/Gene_generator.R')
-  
+
+gen_phen_map <- readRDS("genes.rds") #load the gene array (10 loci, 10 alleles)
   
 ##### FUNCTIONS #####
   
@@ -28,11 +29,11 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     return(ID.offspring)
 }
   
-trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix){ #TRAIT-VALUE-FUNCTION - used for male quality 
+trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map){ #TRAIT-VALUE-FUNCTION - used for male quality 
   value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
   for(y in 1:row){ #for each individual
     for(z in 1:10){ 
-      value.matrix[y,z] <- 1000*(gen_phen_map[z,loci.matrix[y,z],loci.matrix[y,10+z]]) #Intercept=1, Slope=2, slope multiplied with output from genmap
+      value.matrix[y,z] <- 10*(gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #Intercept=1, Slope=2, slope multiplied with output from genmap
     }
     pop.matrix[y,4] <- abs(sum(value.matrix[y,]))+1
   }
@@ -82,6 +83,9 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
       matrix.terr <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #Choose all males in this particular territory (as matrix)
       if(nrow(matrix.terr)>=2){ #If there are at least two in the territory...
         winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
+        if(nrow(winner)>1){ #if trait values are equal, more rows in winner matrix than 1: decide to take the first male in matrix
+          winner <- winner[1,]
+        }
         matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
         for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to NA
           matrix.terr$terr[i4] <- 0
@@ -160,7 +164,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     }
     
     loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
-    population.total <- trait.fun(population,population.total,values.population,loci.matrix) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    population.total <- trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
@@ -327,7 +331,14 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
                   ID.mother.offspring <- c(ID.mother.offspring, rep(mother,offspring.vector[u])) #ID of the mother is written into the vector for all her offspring
                 
                   ###FATHER####
-                  father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
+                  
+                  potfather <- N.male$ID[N.male$patch==N.female$patch[u]] # storing the id's of potential fathers
+                  if(length(potfather) > 1){
+                    father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
+                  }else{
+                    father <- potfather
+                  }
+                  
                   ID.father.offspring <- c(ID.father.offspring,rep(father,offspring.vector[u])) #ID of the father is written into the vector as often as he becomes offspring with the mother
                   
                   #GENETICS:
@@ -377,7 +388,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
             colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro") #column names of the dataframe
             
             population.offspring <- cbind(population.offspring, loci.offspring)
-            population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+            population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
             
             #INFATICIDE: Let offspring die with mortality depending on patch density
             
@@ -442,7 +453,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         ##### End Statistic 2#############
         
       }#END IS ANYBODY THERE? 
-      print(t)
+      #print(t)
     }##### END GENERATION LOOP #####
     
     #Stored summary statistic formatted for output data
@@ -453,7 +464,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 }#END SIMULATION.RUN
 
 #Run function 
-statistic <- simulation.fun()
+#statistic <- simulation.fun()
   
 
 
