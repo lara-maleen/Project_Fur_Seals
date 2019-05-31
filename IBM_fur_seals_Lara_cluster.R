@@ -4,25 +4,24 @@
 rm(list=ls())
 
 ##### START SIMULATION.RUN-FUNCTION #####
-simulation.fun <- function(time=10, #number of generations
+simulation.fun <- function(time=100, #number of generations
                            age=8, #age limit for an individual
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           die=0.05, #level.vector to die
-                           die.fight=0.3, #propability to die from fight
+                           die=0.15, #level.vector to die
+                           die.fight=0.8, #propability to die from fight
                            loci.col=c(12:31), #in which columns of the pop matrix are the loci?
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
 
-#source('C:/Users/Lara/Documents/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals/genes.R')
-#source('/data/home/lara/fur_seals/Gene_generator.R')
-
+#setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
+  
 gen_phen_map <- readRDS("genes.rds") #load the gene array (10 loci, 10 alleles)
   
 ##### FUNCTIONS #####
-  
+#set.seed()
 ID.fun <- function(offspring.vector){ #ID-FUNCTION
     ID.offspring <-   ID.scan:(ID.scan+sum(offspring.vector)-1)
     ID.scan <<- ID.scan + sum(offspring.vector)
@@ -268,8 +267,18 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) #change male matrix 
         
         }
+          else{
+            N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) 
+          }
         }
+          else{
+            N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) 
+          }
+          
         }  #End are there any males for fight?
+        else{
+          N.male <- c()
+        }
         
         ##### COMPETITION END #####
         
@@ -317,102 +326,104 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
           #### START LOOP PARTNERFINDING #####
           patchbook <- c() #empty vector for the patchnumber of the offspring
           genderbook <- c() #empty vector for the gender of the offspring
-          
+         
           N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
-          N.male.patch <- table(factor(N.male$patch,levels = 1:patches)) #number of males in each patch (as a vector)
+          N.male.patch <- table(factor(N.male$patch,levels = 1:patches))#number of males in each patch (as a vector)
           
           current.offspring <- 1 #counter that keeps track of how much offspring have emerged so far during the loop below
           
           if(nrow(N.female)>0){ #START ANY FEMALES?: loop starts if there is at least one female individual
-            for(u in 1:nrow(N.female)){ #START LOOP PARTNERFINDING/mother 
-              if(offspring.vector[u]>0){ #START GETS THE MOTHER OFFSPRING?
-                if(N.male.patch[N.female$patch[u]]>0){ #START ANY MALES IN THE PATCH OF THE MOTHER?: loop starts if there is at least one male individual in the mothers patch
-                  mother <- N.female$ID[u] #gives the ID of the mother
-                  ID.mother.offspring <- c(ID.mother.offspring, rep(mother,offspring.vector[u])) #ID of the mother is written into the vector for all her offspring
+            if(nrow(N.male)>0){
+              for(u in 1:nrow(N.female)){ #START LOOP PARTNERFINDING/mother 
+                if(offspring.vector[u]>0){ #START GETS THE MOTHER OFFSPRING?
+                  if(N.male.patch[N.female$patch[u]]>0){ #START ANY MALES IN THE PATCH OF THE MOTHER?: loop starts if there is at least one male individual in the mothers patch
+                    mother <- N.female$ID[u] #gives the ID of the mother
+                    ID.mother.offspring <- c(ID.mother.offspring, rep(mother,offspring.vector[u])) #ID of the mother is written into the vector for all her offspring
+                  
+                    ###FATHER####
+                    
+                    potfather <- N.male$ID[N.male$patch==N.female$patch[u]] # storing the id's of potential fathers
+                    if(length(potfather) > 1){
+                      father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
+                    }else{
+                      father <- potfather
+                    }
+                    
+                    ID.father.offspring <- c(ID.father.offspring,rep(father,offspring.vector[u])) #ID of the father is written into the vector as often as he becomes offspring with the mother
+                    
+                    #GENETICS:
+                    loci.mother <- population.total[population.total$ID==mother,loci.col] #vector of locis of the mother
+                    loci.father <- population.total[population.total$ID==father,loci.col] #vector of locis of the father
+                    loci.child <- rep(0,length(loci.col)) #empty vector with fixed length for the locis of the offspring
+                    
+                    for(o in 1:offspring.vector[u]){ #START LOOP NUMBER CHILDREN per female
+                      loci.child[1:10] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
+                      loci.child[11:20] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
+                      loci.child <- unlist(loci.child)
+                      
+                      #MUTATION
+                      if(runif(1,0,1) < mutate){ #if a random number is lower than the mutationrate the offspring becomes a random distributed loci
+                        loci.child[round(runif(1,1,20))] <- round(runif(1,1,10))
+                      }
+                      
+                      loci.child <- unlist(loci.child)
+                      loci.offspring[current.offspring,] <-  loci.child #connects loci of the offspring to the matrix of the other offspring in this generation
+                      current.offspring <- current.offspring + 1
+                      
+                      if(runif(1,0,1)>0.5){ #if random number is higher as 0.5, the offspring is female
+                        genderbook <- c(genderbook,"female") #the gender is written in the gender vector for the offspring
+                      } else{ #otherwise the offspring is male
+                        genderbook <- c(genderbook,"male") #the gender is written in the gender vector for the offspring  
+                      }
+                      
+                      #OFFSPRING SURVIVAL
+                      
+                      
+                      } #END LOOP NUMBER CHILDREN
+                    } #END ANY MALES IN THE PATCH OF THE MOTHER?
+                  } #END GETS THE MOTHER OFFSPRING?
                 
-                  ###FATHER####
-                  
-                  potfather <- N.male$ID[N.male$patch==N.female$patch[u]] # storing the id's of potential fathers
-                  if(length(potfather) > 1){
-                    father <- sample(N.male$ID[N.male$patch==N.female$patch[u]],1) #sample the ID of one male which patchnumber is the same as the patchnumber of the mother
-                  }else{
-                    father <- potfather
-                  }
-                  
-                  ID.father.offspring <- c(ID.father.offspring,rep(father,offspring.vector[u])) #ID of the father is written into the vector as often as he becomes offspring with the mother
-                  
-                  #GENETICS:
-                  loci.mother <- population.total[population.total$ID==mother,loci.col] #vector of locis of the mother
-                  loci.father <- population.total[population.total$ID==father,loci.col] #vector of locis of the father
-                  loci.child <- rep(0,length(loci.col)) #empty vector with fixed length for the locis of the offspring
-                  
-                  for(o in 1:offspring.vector[u]){ #START LOOP NUMBER CHILDREN per female
-                    loci.child[1:10] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
-                    loci.child[11:20] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
-                    loci.child <- unlist(loci.child)
-                    
-                    #MUTATION
-                    if(runif(1,0,1) < mutate){ #if a random number is lower than the mutationrate the offspring becomes a random distributed loci
-                      loci.child[round(runif(1,1,20))] <- round(runif(1,1,10))
-                    }
-                    
-                    loci.child <- unlist(loci.child)
-                    loci.offspring[current.offspring,] <-  loci.child #connects loci of the offspring to the matrix of the other offspring in this generation
-                    current.offspring <- current.offspring + 1
-                    
-                    if(runif(1,0,1)>0.5){ #if random number is higher as 0.5, the offspring is female
-                      genderbook <- c(genderbook,"female") #the gender is written in the gender vector for the offspring
-                    } else{ #otherwise the offspring is male
-                      genderbook <- c(genderbook,"male") #the gender is written in the gender vector for the offspring  
-                    }
-                    
-                    #OFFSPRING SURVIVAL
-                    
-                    
-                    } #END LOOP NUMBER CHILDREN
-                  } #END ANY MALES IN THE PATCH OF THE MOTHER?
-                } #END GETS THE MOTHER OFFSPRING?
+              } #END LOOP PARTNERFINDING/mother
               
-            } #END LOOP PARTNERFINDING/mother
-            
-            patchbook <- rep(N.female$patch,offspring.vector) #each offspring becomes the patchnumber of the mother
-            ID.offspring <- ID.fun(offspring.vector) #the ID of the offspring is calculated by the ID-function and written into the vector for their ID
-            trait.offspring <- c(rep(0,length(patchbook))) #the traitvalue of the offspring is set to 0 for the moment
-            survival.offspring <- c(rep(age,length(patchbook))) #each offspring gets the survival of the age limit pre defined
-            gender.offspring <- genderbook #genders of the offspring are written into the matrix
-            patch.offspring <- patchbook #patches of offspring are written into the matrix
-            nr.offspring.offspring <-  c(rep(0,length(patchbook))) #empty column for the subsequent offspring they will get
-            terr.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent territory
-            repro.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent decision for reproduction in t
-            population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring, repro.offspring) #a new dataframe is made for the offspring of this generation
-            colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro") #column names of the dataframe
-            
-            population.offspring <- cbind(population.offspring, loci.offspring)
-            population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
-            
-            #INFATICIDE: Let offspring die with mortality depending on patch density
-            
-            infanticide.vector <- c(rep(NA,patches))
-            for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
-              curr_dens <- sum(population.total$repro==1 & population.total$patch==p4)/territories[p4]
-              y=i+s*plogis(0.03*(curr_dens-2)) #mortality is created 
-              infanticide.vector[p4] <- y #safed in vector 
-            }
-            
-            dying.offspring <- matrix(NA,nrow(population.offspring),ncol=2)
-            dying.offspring[,2] <- runif(nrow(population.offspring),0,1) < infanticide.vector[population.offspring$patch] #for each individual is a random number distributed. if the number is below the deathrate the individual is written into a vector
-            dying.offspring[,1] <- population.offspring$ID
-            dying.offspring.ID <- c()
-            dying.offspring.ID <- dying.offspring[,1][dying.offspring[,2]==1]
-            for(d3 in dying.offspring.ID){
-              population.offspring[population.offspring$ID==d3,]$survival <- 0
-            }
-            
-            population.offspring <-subset(population.offspring,population.offspring$survival>0) #remove all dead offspring
-            
-            population.total <- rbind(population.total,population.offspring) #the offspring population matrix is added to the general population matrix
-            rownames(population.total) <- 1:nrow(population.total) #rownames are overwritten
-            
+                patchbook <- rep(N.female$patch,offspring.vector) #each offspring becomes the patchnumber of the mother
+                ID.offspring <- ID.fun(offspring.vector) #the ID of the offspring is calculated by the ID-function and written into the vector for their ID
+                trait.offspring <- c(rep(0,length(patchbook))) #the traitvalue of the offspring is set to 0 for the moment
+                survival.offspring <- c(rep(age,length(patchbook))) #each offspring gets the survival of the age limit pre defined
+                gender.offspring <- genderbook #genders of the offspring are written into the matrix
+                patch.offspring <- patchbook #patches of offspring are written into the matrix
+                nr.offspring.offspring <-  c(rep(0,length(patchbook))) #empty column for the subsequent offspring they will get
+                terr.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent territory
+                repro.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent decision for reproduction in t
+                population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring, repro.offspring) #a new dataframe is made for the offspring of this generation
+                colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro") #column names of the dataframe
+                
+                population.offspring <- cbind(population.offspring, loci.offspring)
+                population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+                
+                #INFATICIDE: Let offspring die with mortality depending on patch density
+                
+                infanticide.vector <- c(rep(NA,patches))
+                for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
+                  curr_dens <- sum(population.total$repro==1 & population.total$patch==p4)/territories[p4]
+                  y=i+s*plogis(0.03*(curr_dens-2)) #mortality is created 
+                  infanticide.vector[p4] <- y #safed in vector 
+                }
+                
+                dying.offspring <- matrix(NA,nrow(population.offspring),ncol=2)
+                dying.offspring[,2] <- runif(nrow(population.offspring),0,1) < infanticide.vector[population.offspring$patch] #for each individual is a random number distributed. if the number is below the deathrate the individual is written into a vector
+                dying.offspring[,1] <- population.offspring$ID
+                dying.offspring.ID <- c()
+                dying.offspring.ID <- dying.offspring[,1][dying.offspring[,2]==1]
+                for(d3 in dying.offspring.ID){
+                  population.offspring[population.offspring$ID==d3,]$survival <- 0
+                }
+                
+                population.offspring <-subset(population.offspring,population.offspring$survival>0) #remove all dead offspring
+                
+                population.total <- rbind(population.total,population.offspring) #the offspring population matrix is added to the general population matrix
+                rownames(population.total) <- 1:nrow(population.total) #rownames are overwritten
+              
+            }#END ANY MALES?
           }#END ANY FEMALES?
         }#END IS OFFSPRING POSSIBLE?
         
@@ -464,6 +475,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 }#END SIMULATION.RUN
 
 #Run function 
+#debug(simulation.fun)
 #statistic <- simulation.fun()
   
 
