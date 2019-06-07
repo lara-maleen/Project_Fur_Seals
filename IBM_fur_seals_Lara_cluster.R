@@ -9,10 +9,10 @@ simulation.fun <- function(time=100, #number of generations
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           die=0.15, #level.vector to die
-                           die.fight=0.4, #propability to die from fight
-                           loci.col=c(13:32), #in which columns of the pop matrix are the loci?
-                           u= 0.0001, #parameter for philopatry function (female patch choice)
+                           die=0.18, #level.vector to die
+                           die.fight=0.35, #propability to die from fight
+                           loci.col=c(14:53), #in which columns of the pop matrix are the loci?
+                           p= 0, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
@@ -21,6 +21,7 @@ setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
   
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles)
 gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles)
+gen_phen_map2 <- readRDS('genes2.rds') #create new gene map for this trait value! Between -0.2 and +0.2
   
 ##### FUNCTIONS #####
 #set.seed()
@@ -30,13 +31,24 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     return(ID.offspring)
 }
   
-trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
+male.trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
   value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
   for(y in 1:row){ #for each individual
     for(z in 1:10){ 
       value.matrix[y,z] <- 10*(gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #Intercept=1, Slope=2, slope multiplied with output from genmap
     }
     pop.matrix[y,4] <- abs(sum(value.matrix[y,]))+1
+  }
+  return(pop.matrix)
+}
+
+female.trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for female philopatry trait value (loci 20-40)
+  value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
+  for(y in 1:row){ #for each individual
+    for(z in 1:10){ 
+      value.matrix[y,z] <- gen_phen_map2[loci.matrix[y,z],loci.matrix[y,10+z],z] #Intercept=1, Slope=2, slope multiplied with output from genmap
+    }
+    pop.matrix[y,5] <- (sum(value.matrix[y,]))
   }
   return(pop.matrix)
 }
@@ -62,22 +74,22 @@ choice.fun <- function(population.males, population.total, N.male){
 }
 
 
-choice.fun.females <- function(N.female,u,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
-  p.patch <- c(rep(NA,nrow(N.female))) #empty vector for percentage to change patch
-  for(i in 1:nrow(N.female)){
-    if(N.female$patch.born[i]==1){ #if this female was born on patch 1
-    p.patch[i] <- plogis((N.female[i,]$trait)*(N.last1*u)) #with this propability the patch is changed!! this year (depending on trait, and density of patch where female was born) -> high N = propability increases to change patch, high trait value = prop decreases
-    }
-    else{ #if this female was born on patch 2
-    p.patch[i] <- plogis((N.female[i,]$trait)*(N.last2*u))
-    }
-    p.patch[i] <- runif(1,0,1) < p.patch[i] #decision if female goes to birth patch or not --> p.patch high = prop to change patch is higher (to dont go to birth patch)
-  if(p.patch[i]==0){
-    N.female[i,]$patch <- (N.female[i,]$patch.born - 1 + floor(runif(1,1,patches)))%%patches + 1 #change patch if patch change is true
-  }
-  }
+choice.fun.females.vec <- function(N.female,p,N.1,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
+  
+  u <- p*(N.1+2) #parameter that is influenced by the philopatry paramter and normal density (100 per patch, 200 total females approx.)
+  # create a helping variable
+  N.last <- c(N.last1,N.last2)
+  
+  # calculate the probability that a female moves patch. Take N.last at the position where the female is born.
+  # then compare the probability to as many random numbers as there are females
+  p.patch  <- plogis(N.female$female.trait*(N.last[N.female$patch] - u)) > runif(nrow(N.female),0,1)
+  
+  # on the positions where p.patch is TRUE, change the patch number
+  N.female$patch[p.patch] <- (N.female$patch[p.patch] - 1 + floor(runif(sum(p.patch),1,patches)))%%patches + 1 
+  
   return(N.female)
 }
+
 
 
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
@@ -132,13 +144,14 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
-      patchx.N <- abs(round(rnorm(1, mean=250, sd=10))) #Number of individuals in the patch 
+      patchx.N <- abs(round(rnorm(1, mean=100, sd=10))) #Number of individuals in the patch 
       patchx.male <- round(runif(1,patchx.N/4,3*patchx.N/4)) #Number of males in the patch
       
       ID <- c(1:(patchx.N)) #vector ID: gives each individual an ID
       patch <- c(rep(k,patchx.N)) #vector patch: gives each individual their patch Nr.
       gender <- c(rep("male",patchx.male),rep("female",patchx.N-patchx.male)) #vector gender: is filled with males and females
       trait <- c(rep(0.5,patchx.N)) #vector trait: is for all individuals from both patches set as 0.5
+      female.trait <- c(rep(0.5,patchx.N))
       survival <- ceiling(runif(patchx.N, min=0, max=age)) #vector survival: randomly distributed between 1 and age limit 
       ID.mother <- c(rep(NA,patchx.N)) #the first generation has no mother and therefore no ID in the column for the mothers ID
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
@@ -147,9 +160,9 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
       terr <- c(rep(0, patchx.N)) #here the obtained territory is stored, emptied every t
       repro <- c(rep(0, patchx.N)) #decision stored if male can reproduce this t or not (1=True, 0=False)
       patch.born <- patch 
-      loci <- c(1:20) #empty space for loci (nr of loci=20)
+      loci <- c(1:40) #empty space for loci (nr of loci=40) 20 for male quality trait + 20 for female philopatry trait value
       
-      patchx <- data.frame(ID,patch,gender,trait,survival,ID.mother,ID.father, patch.last.year, nr.offspring, terr, repro, patch.born) #the dataframe is constructed for each patch including all vectors which where defined just before
+      patchx <- data.frame(ID,patch,gender,trait,female.trait,survival,ID.mother,ID.father, patch.last.year, nr.offspring, terr, repro, patch.born) #the dataframe is constructed for each patch including all vectors which where defined just before
       loci.matrix.pop <- matrix(ncol=length(loci.col), nrow=patchx.N) 
       patchx <- cbind(patchx, loci.matrix.pop)
       population.total <- rbind(population.total,patchx)  #data frame including all individuals of all patches (the dataframe of a patch is included in the population matrix)
@@ -178,14 +191,16 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     ########STATISTIC END  #####
     
     population <- nrow(population.total) #number of individuals
-    loci.total <- matrix(NA,nrow=population,ncol=20+1) #empty matrix for the locis (20 numbers) and the ID of the individual (+1 number)
     
     for(x in 1:population){ #LOOP OVER THE INDIVIDUALS
-      population.total[x,loci.col] <- ceiling(runif(20,1e-16,10)) #each individual has 20 random numbers (first 10:row //last 10:column)
+      population.total[x,loci.col] <- ceiling(runif(40,1e-16,10)) #each individual has 20 random numbers (first 10:row //last 10:column)
     }
     
     loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
-    population.total <- trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    population.total <- male.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    population.total <- female.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    
+    N.1 <- nrow(population.total) #the N from the beginning, used for the philopatry function (as normal density factor)
     
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
@@ -311,7 +326,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         N.female <- subset(population.total,population.total$gender=="female")
         if(nrow(N.female)>0){ #are there any females?
         patchbook_females <- c()
-        N.female <- choice.fun.females(N.female,u,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
+        N.female <- choice.fun.females.vec(N.female,p,N.1,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
         patchbook_females <- N.female$patch
         population.total[population.total$gender=='female',]$patch <- patchbook_females #overwrite patch choice from before       
         }
@@ -350,16 +365,17 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
           patch.offspring <- c() #empty vector for the patch of the offspring
           gender.offspring <- c() #empty vector for the gender of the offspring
           trait.offspring <- c() #empty vector for the trait of the offspring
+          female.trait.offspring <- c()
           survival.offspring <- c() #each offspring gets the survival of the maximum age
           ID.mother.offspring <- c() #empty vector for the mothers ID of the offspring
           ID.father.offspring <- c() #empty vector for the fathers ID of the offspring
           
-          loci.offspring <- matrix(NA,nrow=sum(offspring.vector),ncol=20) #empty vector for the locis of the offspring
+          loci.offspring <- matrix(NA,nrow=sum(offspring.vector),ncol=40) #empty vector for the locis of the offspring
           
           #### START LOOP PARTNERFINDING #####
           patchbook <- c() #empty vector for the patchnumber of the offspring
           genderbook <- c() #empty vector for the gender of the offspring
-         
+          
           N.female.patch <- table(factor(N.female$patch,levels = 1:patches)) #number of females in each patch (as a vector)
           N.male.patch <- table(factor(N.male$patch,levels = 1:patches))#number of males in each patch (as a vector)
           
@@ -392,11 +408,14 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
                     for(o in 1:offspring.vector[u]){ #START LOOP NUMBER CHILDREN per female
                       loci.child[1:10] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
                       loci.child[11:20] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
+                      loci.child[21:30] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
+                      loci.child[31:40] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
+                      #total sum of loci = 40
                       loci.child <- unlist(loci.child)
                       
                       #MUTATION
                       if(runif(1,0,1) < mutate){ #if a random number is lower than the mutationrate the offspring becomes a random distributed loci
-                        loci.child[round(runif(1,1,20))] <- round(runif(1,1,10))
+                        loci.child[round(runif(1,1,10))] <- round(runif(1,1,10))
                       }
                       
                       loci.child <- unlist(loci.child)
@@ -418,9 +437,11 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
                 
               } #END LOOP PARTNERFINDING/mother
               
+                loci.offspring <- as.data.frame(loci.offspring)
                 patchbook <- rep(N.female$patch,offspring.vector) #each offspring becomes the patchnumber of the mother
                 ID.offspring <- ID.fun(offspring.vector) #the ID of the offspring is calculated by the ID-function and written into the vector for their ID
                 trait.offspring <- c(rep(0,length(patchbook))) #the traitvalue of the offspring is set to 0 for the moment
+                female.trait.offspring <- c(rep(0,length(patchbook))) #the traitvalue of the offspring is set to 0 for the moment
                 survival.offspring <- c(rep(age,length(patchbook))) #each offspring gets the survival of the age limit pre defined
                 gender.offspring <- genderbook #genders of the offspring are written into the matrix
                 patch.offspring <- patchbook #patches of offspring are written into the matrix
@@ -428,11 +449,14 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
                 terr.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent territory
                 repro.offspring <- c(rep(0, length(patchbook))) #empty column for subsequent decision for reproduction in t
                 patch.born.offspring <- rep(N.female$patch,offspring.vector) #this stores info where on individuals is born (not changed over time)
-                population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring,survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring, repro.offspring, patch.born.offspring) #a new dataframe is made for the offspring of this generation
-                colnames(population.offspring) <- c("ID","patch","gender","trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro", "patch.born") #column names of the dataframe
+                population.offspring <- data.frame(ID.offspring,patch.offspring,gender.offspring,trait.offspring, female.trait.offspring, survival.offspring,ID.mother.offspring,ID.father.offspring, patch.offspring, nr.offspring.offspring, terr.offspring, repro.offspring, patch.born.offspring) #a new dataframe is made for the offspring of this generation
+                colnames(population.offspring) <- c("ID","patch","gender","trait","female.trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro", "patch.born") #column names of the dataframe
                 
                 population.offspring <- cbind(population.offspring, loci.offspring)
-                population.offspring <- trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+                colnames(population.offspring) <- c("ID","patch","gender","trait","female.trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro", "patch.born",1:40) #column names of the dataframe
+                
+                population.offspring <- male.trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+                population.offspring <- female.trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
                 
                 #INFATICIDE: Let offspring die with mortality depending on patch density
                 
@@ -498,7 +522,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         ##### End Statistic 2#############
         
       }#END IS ANYBODY THERE? 
-      print(t)
+      #print(t)
     }##### END GENERATION LOOP #####
     
     #Stored summary statistic formatted for output data
@@ -511,6 +535,8 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 #Run function 
 debug(simulation.fun)
 statistic <- simulation.fun()
-  
+
+
+
 
 
