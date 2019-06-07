@@ -12,7 +12,11 @@ simulation.fun <- function(time=100, #number of generations
                            die=0.18, #level.vector to die
                            die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
+<<<<<<< Updated upstream
                            p= 0, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
+=======
+                           p= 0.8, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
+>>>>>>> Stashed changes
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
