@@ -12,11 +12,8 @@ simulation.fun <- function(time=100, #number of generations
                            die=0.18, #level.vector to die
                            die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
-<<<<<<< Updated upstream
-                           p= 0, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
-=======
-                           p= 0.8, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
->>>>>>> Stashed changes
+                           p= 0.5, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
+                           u = 150, #assumed normal average density (for each patch), used for female patch choice function
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
@@ -24,6 +21,7 @@ simulation.fun <- function(time=100, #number of generations
 setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
   
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles)
+#gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles)
 gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles)
 gen_phen_map2 <- readRDS('genes2.rds') #create new gene map for this trait value! Between -0.2 and +0.2
   
@@ -78,22 +76,24 @@ choice.fun <- function(population.males, population.total, N.male){
 }
 
 
-choice.fun.females.vec <- function(N.female,p,N.1,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
+choice.fun.females.vec <- function(N.female,p,u,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
   
-  u <- p*(N.1+2) #parameter that is influenced by the philopatry paramter and normal density (100 per patch, 200 total females approx.)
-  # create a helping variable
   N.last <- c(N.last1,N.last2)
   
-  # calculate the probability that a female moves patch. Take N.last at the position where the female is born.
-  # then compare the probability to as many random numbers as there are females
-  p.patch  <- plogis(N.female$female.trait*(N.last[N.female$patch] - u)) > runif(nrow(N.female),0,1)
-  
-  # on the positions where p.patch is TRUE, change the patch number
-  N.female$patch[p.patch] <- (N.female$patch[p.patch] - 1 + floor(runif(sum(p.patch),1,patches)))%%patches + 1 
-  
+  #Add philopatric decision (parameter set at the beginning)
+  p.patch <- p > runif(nrow(N.female),0,1) #decide wether female is philopatric or not (stays at birth patch = TRUE), if not then the density-dependent choice takes place
+  # on the positions where p.patch is TRUE, change the patch number to birth patch
+  for(i in nrow(N.female)){
+    if(p.patch[i]==TRUE){
+      N.female$patch[i] <- N.female$patch.born[i]
+    }
+    else{ # density dependence:
+      p.patch[i]  <- plogis(N.female$female.trait[i]*(N.last[N.female$patch[i]] - u)) > runif(1,0,1)
+      N.female$patch[i] <- (N.female$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1 
+    }
+  }
   return(N.female)
 }
-
 
 
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
@@ -144,7 +144,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 ##### INITIALISATION PATCHES #####
 
   population.total <- c() #empty vector for the population matrix
-  statistic.matrix <- matrix(ncol=13, nrow=time) #empty array for the statistics
+  statistic.matrix <- matrix(ncol=15, nrow=time) #empty array for the statistics
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
@@ -183,6 +183,8 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     population.N2 <- rep(0,time) #empty vector for the pop size in patch 2 of each generation
     population.meantrait1.males <- rep(0,time) #empty vector for the mean trait in patch 1 of each generation
     population.meantrait2.males <- rep(0,time) #empty vector for the mean trait in patch 2 of each generation
+    population.meantrait1.females <- rep(0,time) #empty vector for the mean trait in patch 1 of each generation
+    population.meantrait2.females <- rep(0,time) #empty vector for the mean trait in patch 2 of each generation
     population.males1 <- rep(0,time) #empty vector for the number of males in patch 1 of each generation
     population.males2 <- rep(0,time) #empty vector for the number of males in patch 2 of each generation
     population.females1 <- rep(0,time) #empty vector for the number of females in patch 1 of each generation
@@ -330,7 +332,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         N.female <- subset(population.total,population.total$gender=="female")
         if(nrow(N.female)>0){ #are there any females?
         patchbook_females <- c()
-        N.female <- choice.fun.females.vec(N.female,p,N.1,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
+        N.female <- choice.fun.females.vec(N.female,p,u,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
         patchbook_females <- N.female$patch
         population.total[population.total$gender=='female',]$patch <- patchbook_females #overwrite patch choice from before       
         }
@@ -512,6 +514,8 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for first generation
         population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)  #average trait-value from males for patch 1  for first generation
         population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2,]$trait) #average trait-value from males for patch 2  for first generation
+        population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1,]$trait)  #average trait-value from females for patch 1  for first generation
+        population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2,]$trait) #average trait-value from females for patch 2  for first generation
         population.males1[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]) #Number of males in patch 1  for first generation
         population.males2[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]) #Number of males in patch 2  for first generation
         population.females1[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==1,]) #Number of females in patch 1  for first generation
@@ -521,7 +525,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         cov.males1[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==1,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)) #covariance of number of offspring and male quality in patch 1
         cov.males2[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==2,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==2,]$trait)) #covariance of number of offspring and male quality in patch 2
         
-        statistic.matrix[t,] <- cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1.males[t], population.meantrait2.males[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t], offspring.produced1[t], offspring.produced2[t],  cov.males1[t],  cov.males2[t])
+        statistic.matrix[t,] <- cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1.males[t], population.meantrait2.males[t],population.meantrait1.females[t], population.meantrait2.females[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t], offspring.produced1[t], offspring.produced2[t],  cov.males1[t],  cov.males2[t])
         
         ##### End Statistic 2#############
         
@@ -531,13 +535,13 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     
     #Stored summary statistic formatted for output data
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
-    colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
+    colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
     return(statistic.matrix)
     
 }#END SIMULATION.RUN
 
 #Run function 
-debug(simulation.fun)
+#debug(simulation.fun)
 statistic <- simulation.fun()
 
 
