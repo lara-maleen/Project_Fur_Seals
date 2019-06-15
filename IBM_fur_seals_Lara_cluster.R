@@ -9,7 +9,7 @@ simulation.fun <- function(time=100, #number of generations
                            patches=2, #number of Patches (two different sites: high/low density)
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           die=0.18, #level.vector to die
+                           #die=0.18, #level.vector to die
                            die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
                            p= 0.5, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
@@ -141,6 +141,10 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
   
 }
 
+mortality <- function(N){
+  1-(plogis(qlogis(0.85)-(N-300)*0.005))
+}
+
 ##### INITIALISATION PATCHES #####
 
   population.total <- c() #empty vector for the population matrix
@@ -206,8 +210,6 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
     population.total <- male.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     population.total <- female.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     
-    N.1 <- nrow(population.total) #the N from the beginning, used for the philopatry function (as normal density factor)
-    
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
       
@@ -225,10 +227,10 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         
         if(nrow(population.total[population.total$gender=="male",])>0){
           
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-3),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
-          population.total[population.total$survival<(age-3)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-3),])>0){
-          population.total[population.total$survival>=(age-3)&population.total$gender=="male",]$repro <- 0 #males that are old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-4),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
+          population.total[population.total$survival<(age-4)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-4),])>0){
+          population.total[population.total$survival>=(age-4)&population.total$gender=="male",]$repro <- 0 #males that are not old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
         
         ##### 
         
@@ -495,33 +497,38 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
         
         ##### DEATH START #####
         #death by age:
-        population.total$survival[1:N] <- population.total$survival[1:N]-1 #every adult loses one survival counter per generation
+        N <- nrow(population.total)
+        
+        population.total$survival <- population.total$survival-1 #every adult loses one survival counter per generation
         
         #random Death:
-     
-        dying.individuals <- runif(nrow(population.total),0,1) < die #for each individual is a random number distributed. if the number is belo the deathrate the individual is written into a vector
-        population.total$survival[dying.individuals] <- 0 #the individuals that where written into the vactor below, become a 0 in their survival
+        die <- mortality(N) #get density dependend mortality rate (=die)
+        
+        dying.individuals <- runif(nrow(population.total),0,1) < die #for each individual is a random number distributed. if the number is below the deathrate the individual is written into a vector
+        population.total$survival[dying.individuals] <- 0 #the individuals that where written into the vector below, become a 0 in their survival
         
         #erasing dead individuals:
         if(nrow(population.total)>0){
         population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
         }
+        
+        
         ##### END DEATH #####   
         
         ###Statistic 2##
-        population.N[t] <-nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
+        population.N[t] <- nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
         population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for first generation
         population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for first generation
         population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)  #average trait-value from males for patch 1  for first generation
         population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2,]$trait) #average trait-value from males for patch 2  for first generation
-        population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1,]$trait)  #average trait-value from females for patch 1  for first generation
-        population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2,]$trait) #average trait-value from females for patch 2  for first generation
+        population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1,]$female.trait)  #average trait-value from females for patch 1  for first generation
+        population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2,]$female.trait) #average trait-value from females for patch 2  for first generation
         population.males1[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]) #Number of males in patch 1  for first generation
         population.males2[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]) #Number of males in patch 2  for first generation
         population.females1[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==1,]) #Number of females in patch 1  for first generation
         population.females2[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==2,]) #Number of females in patch 2  for first generation
-        offspring.produced1[t] <- nrow(population.total[population.total$survival==age&population.total$patch==1,])#number of new offspring in patch 1 
-        offspring.produced2[t] <- nrow(population.total[population.total$survival==age&population.total$patch==2,])#number of new offspring in patch 2
+        offspring.produced1[t] <- nrow(population.total[population.total$survival==(age-1)&population.total$patch==1,])#number of new offspring in patch 1 
+        offspring.produced2[t] <- nrow(population.total[population.total$survival==(age-1)&population.total$patch==2,])#number of new offspring in patch 2
         cov.males1[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==1,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)) #covariance of number of offspring and male quality in patch 1
         cov.males2[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==2,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==2,]$trait)) #covariance of number of offspring and male quality in patch 2
         
