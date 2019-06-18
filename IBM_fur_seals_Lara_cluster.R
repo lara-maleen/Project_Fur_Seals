@@ -548,7 +548,7 @@ mortality <- function(N){
 }#END SIMULATION.RUN
 
 #Run function 
-#debug(simulation.fun)
+debug(simulation.fun)
 statistic <- simulation.fun()
 
 
