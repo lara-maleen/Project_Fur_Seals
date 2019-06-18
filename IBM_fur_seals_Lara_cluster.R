@@ -7,13 +7,13 @@ rm(list=ls())
 simulation.fun <- function(time=100, #number of generations
                            age=15, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
                            patches=2, #number of Patches (two different sites: high/low density)
-                           territories=c(50,50), #number of territories per patch
+                           territories=c(20,20), #number of territories per patch
                            mutate=0.05, #mutationfactor
                            #die=0.18, #level.vector to die
-                           die.fight=0.35, #propability to die from fight
+                           die.fight=0.3, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
-                           p= 0.5, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
-                           u = 150, #assumed normal average density (for each patch), used for female patch choice function
+                           p= 0.75, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
+                           u = 100, #assumed normal average density (for each patch), used for female patch choice function
                            i=0.1, #intercept for infanticide function
                            s=0.9 #slope for infanticide function
 ){
@@ -23,7 +23,7 @@ setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles)
 #gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles)
 gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles)
-gen_phen_map2 <- readRDS('genes2.rds') #create new gene map for this trait value! Between -0.2 and +0.2
+gen_phen_map2 <- readRDS('genes2.rds') #second gene map for female trait value. Between -0.2 and +0.2
   
 ##### FUNCTIONS #####
 #set.seed()
@@ -33,26 +33,27 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION
     return(ID.offspring)
 }
   
-male.trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
-  value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
-  for(y in 1:row){ #for each individual
+trait.fun <- function(population.total,value.matrix, loci.matrix, gen_phen_map, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
+  
+  #Male Trait Value
+  value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
+  for(y in 1:nrow(population.total)){ #for each individual
     for(z in 1:10){ 
-      value.matrix[y,z] <- 10*(gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #Intercept=1, Slope=2, slope multiplied with output from genmap
+      value.matrix[y,z] <- 10*(gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #slope multiplied with output from genmap
     }
-    pop.matrix[y,4] <- abs(sum(value.matrix[y,]))+1
+    population.total[y,4] <- abs(sum(value.matrix[y,]))+1
   }
-  return(pop.matrix)
-}
-
-female.trait.fun <- function(row,pop.matrix,value.matrix, loci.matrix, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for female philopatry trait value (loci 20-40)
-  value.matrix <- matrix(NA,nrow=row,ncol=10) #empty matrix for the trait values for each loci
-  for(y in 1:row){ #for each individual
-    for(z in 1:10){ 
-      value.matrix[y,z] <- gen_phen_map2[loci.matrix[y,z],loci.matrix[y,10+z],z] #Intercept=1, Slope=2, slope multiplied with output from genmap
+  
+  #Female Trait Value:
+  value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
+  for(y2 in 1:nrow(population.total)){ #for each individual
+    for(z2 in 1:10){ 
+      value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2],loci.matrix[y2,10+z2],z2] 
     }
-    pop.matrix[y,5] <- (sum(value.matrix[y,]))
+    population.total[y2,5] <- (sum(value.matrix[y2,]))
   }
-  return(pop.matrix)
+  
+  return(population.total)
 }
 
 
@@ -76,20 +77,24 @@ choice.fun <- function(population.males, population.total, N.male){
 }
 
 
-choice.fun.females.vec <- function(N.female,p,u,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
+choice.fun.females <- function(N.female,p,u,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
   
-  N.last <- c(N.last1,N.last2)
-  
+  N.last <- c(N.last1,N.last2) #get the population size from the previous year per patch
   #Add philopatric decision (parameter set at the beginning)
   p.patch <- p > runif(nrow(N.female),0,1) #decide wether female is philopatric or not (stays at birth patch = TRUE), if not then the density-dependent choice takes place
-  # on the positions where p.patch is TRUE, change the patch number to birth patch
-  for(i in nrow(N.female)){
-    if(p.patch[i]==TRUE){
+  #on the positions where p.patch is TRUE, the patch number is the birth patch:
+  
+  for (i in 1:length(p.patch)){
+    
+    if (isTRUE(p.patch[i])){ #if this is true, than female go to the patch it was born
       N.female$patch[i] <- N.female$patch.born[i]
     }
-    else{ # density dependence:
-      p.patch[i]  <- plogis(N.female$female.trait[i]*(N.last[N.female$patch[i]] - u)) > runif(1,0,1)
-      N.female$patch[i] <- (N.female$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1 
+    
+    else{ #otherwise the female gets a new TRUE or FAlSE depending on the density of last years patch 
+      patch.u  <- plogis(N.female$female.trait[i]*(N.last[N.female$patch[i]] - u)) > runif(1,0,1)
+      if (isTRUE(patch.u)){ #if that is true, the patch is changed to the other patch  
+        N.female$patch[i] <- (N.female$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1
+      }
     }
   }
   return(N.female)
@@ -141,9 +146,13 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
   
 }
 
+
+
 mortality <- function(N){
-  1-(plogis(qlogis(0.85)-(N-300)*0.005))
+  1-(plogis(qlogis(0.85)-(N-300)*0.005)) #carying capacity with ~300 individuals total 
 }
+
+
 
 ##### INITIALISATION PATCHES #####
 
@@ -152,7 +161,7 @@ mortality <- function(N){
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
-      patchx.N <- abs(round(rnorm(1, mean=100, sd=10))) #Number of individuals in the patch 
+      patchx.N <- abs(round(rnorm(1, mean=100, sd=5))) #Number of individuals in the patch 
       patchx.male <- round(runif(1,patchx.N/4,3*patchx.N/4)) #Number of males in the patch
       
       ID <- c(1:(patchx.N)) #vector ID: gives each individual an ID
@@ -207,8 +216,8 @@ mortality <- function(N){
     }
     
     loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
-    population.total <- male.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
-    population.total <- female.trait.fun(population,population.total,values.population,loci.matrix, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    population.total <- trait.fun(population.total,values.population,loci.matrix, gen_phen_map, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    #population.total <- female.trait.fun(population.total,values.population,loci.matrix, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     
     ##### GENERATION LOOP START #####  
     for(t in 1:time){
@@ -334,7 +343,7 @@ mortality <- function(N){
         N.female <- subset(population.total,population.total$gender=="female")
         if(nrow(N.female)>0){ #are there any females?
         patchbook_females <- c()
-        N.female <- choice.fun.females.vec(N.female,p,u,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
+        N.female <- choice.fun.females(N.female,p,u,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
         patchbook_females <- N.female$patch
         population.total[population.total$gender=='female',]$patch <- patchbook_females #overwrite patch choice from before       
         }
@@ -463,8 +472,8 @@ mortality <- function(N){
                 population.offspring <- cbind(population.offspring, loci.offspring)
                 colnames(population.offspring) <- c("ID","patch","gender","trait","female.trait","survival","ID.mother","ID.father", "patch.last.year", "nr.offspring","terr","repro", "patch.born",1:40) #column names of the dataframe
                 
-                population.offspring <- male.trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
-                population.offspring <- female.trait.fun(sum(offspring.vector),population.offspring,values.offspring, loci.offspring, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+                population.offspring <- trait.fun(population.offspring,values.offspring, loci.offspring, gen_phen_map, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+                #population.offspring <- female.trait.fun(population.offspring,values.offspring, loci.offspring, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
                 
                 #INFATICIDE: Let offspring die with mortality depending on patch density
                 
@@ -517,8 +526,8 @@ mortality <- function(N){
         
         ###Statistic 2##
         population.N[t] <- nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
-        population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for first generation
-        population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for first generation
+        population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for all individuals that reproduced
+        population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for all ind. that reproduced 
         population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)  #average trait-value from males for patch 1  for first generation
         population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2,]$trait) #average trait-value from males for patch 2  for first generation
         population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1,]$female.trait)  #average trait-value from females for patch 1  for first generation
@@ -547,7 +556,11 @@ mortality <- function(N){
     
 }#END SIMULATION.RUN
 
+<<<<<<< Updated upstream
 #Run function 
+=======
+#run function 
+>>>>>>> Stashed changes
 #debug(simulation.fun)
 statistic <- simulation.fun()
 
