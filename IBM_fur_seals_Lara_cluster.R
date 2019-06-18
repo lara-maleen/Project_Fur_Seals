@@ -556,11 +556,7 @@ mortality <- function(N){
     
 }#END SIMULATION.RUN
 
-<<<<<<< Updated upstream
-#Run function 
-=======
-#run function 
->>>>>>> Stashed changes
+#Run function
 #debug(simulation.fun)
 statistic <- simulation.fun()
 
