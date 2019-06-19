@@ -14,7 +14,7 @@ simulation.fun <- function(time=100, #number of generations
                            p= 0.75, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
                            u = 200, #assumed normal average density (for each patch), used for female patch choice function
                            i=-0.8, #intercept for infanticide function
-                           s=1.8 #slope for infanticide function
+                           s=1.8, #slope for infanticide function
                            surv=0.9 #survival for total population 
 ){
 
