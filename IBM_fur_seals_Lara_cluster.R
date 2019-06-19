@@ -7,15 +7,15 @@ rm(list=ls())
 simulation.fun <- function(time=100, #number of generations
                            age=15, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
                            patches=2, #number of Patches (two different sites: high/low density)
-                           territories=c(20,20), #number of territories per patch
+                           territories=c(25,25), #number of territories per patch
                            mutate=0.05, #mutationfactor
-                           #die=0.18, #level.vector to die
-                           die.fight=0.3, #propability to die from fight
+                           die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
                            p= 0.75, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
-                           u = 100, #assumed normal average density (for each patch), used for female patch choice function
-                           i=0.1, #intercept for infanticide function
-                           s=0.9 #slope for infanticide function
+                           u = 200, #assumed normal average density (for each patch), used for female patch choice function
+                           i=-0.8, #intercept for infanticide function
+                           s=1.8 #slope for infanticide function
+                           surv=0.9 #survival for total population 
 ){
 
 setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
@@ -149,7 +149,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 
 
 mortality <- function(N){
-  1-(plogis(qlogis(0.85)-(N-300)*0.005)) #carying capacity with ~300 individuals total 
+  1-(plogis(qlogis(surv)-(N-600)*0.005)) #carying capacity with ~500 individuals total 
 }
 
 
@@ -161,7 +161,7 @@ mortality <- function(N){
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
-      patchx.N <- abs(round(rnorm(1, mean=100, sd=5))) #Number of individuals in the patch 
+      patchx.N <- abs(round(rnorm(1, mean=300, sd=5))) #Number of individuals in the patch 
       patchx.male <- round(runif(1,patchx.N/4,3*patchx.N/4)) #Number of males in the patch
       
       ID <- c(1:(patchx.N)) #vector ID: gives each individual an ID
@@ -236,10 +236,10 @@ mortality <- function(N){
         
         if(nrow(population.total[population.total$gender=="male",])>0){
           
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-4),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
-          population.total[population.total$survival<(age-4)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-4),])>0){
-          population.total[population.total$survival>=(age-4)&population.total$gender=="male",]$repro <- 0 #males that are not old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-1),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
+          population.total[population.total$survival<(age-1)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-1),])>0){
+          population.total[population.total$survival>=(age-1)&population.total$gender=="male",]$repro <- 0 #males that are not old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
         
         ##### 
         
@@ -479,8 +479,8 @@ mortality <- function(N){
                 
                 infanticide.vector <- c(rep(NA,patches))
                 for(p4 in 1:patches){ #for each patch a specific mortality/infanticide rate, depending on density on the patch
-                  curr_dens <- sum(population.total$repro==1 & population.total$patch==p4)/territories[p4]
-                  y=i+s*plogis(0.05*(curr_dens-5)) #mortality is created 
+                  curr_N <- sum(population.total$patch==p4)
+                  y=i+s*plogis(0.01*(curr_N)) #mortality is created 
                   infanticide.vector[p4] <- y #safed in vector 
                 }
                 
