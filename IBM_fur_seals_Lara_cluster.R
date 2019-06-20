@@ -7,23 +7,23 @@ rm(list=ls())
 simulation.fun <- function(time=100, #number of generations
                            age=15, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
                            patches=2, #number of Patches (two different sites: high/low density)
-                           territories=c(25,25), #number of territories per patch
+                           territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutationfactor
                            die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
-                           p= 0.75, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
-                           u = 200, #assumed normal average density (for each patch), used for female patch choice function
+                           p= 0, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
+                           u = 40, #assumed normal average density (for each patch), used for female patch choice function
                            i=-0.8, #intercept for infanticide function
-                           s=1.8 #slope for infanticide function
-                           surv=0.9 #survival for total population 
+                           s=1.8, #slope for infanticide function
+                           surv=0.8 #survival for total population 
 ){
 
-setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
+#setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
   
-#gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles)
-#gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles)
-gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles)
-gen_phen_map2 <- readRDS('genes2.rds') #second gene map for female trait value. Between -0.2 and +0.2
+gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles)
+gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles)
+#gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles)
+#gen_phen_map2 <- readRDS('genes2.rds') #second gene map for female trait value. Between -0.2 and +0.2
   
 ##### FUNCTIONS #####
 #set.seed()
@@ -57,27 +57,20 @@ trait.fun <- function(population.total,value.matrix, loci.matrix, gen_phen_map, 
 }
 
 
-choice.fun <- function(population.males, population.total, N.male){
-  decision.matrix <- matrix(NA,nrow=population.males,ncol=1)
-  for(y2 in 1:population.males){ #for each male
-    if (N.male$nr.offspring[y2]>0){ #If reproductive success is greater than 0 patch stays the same (from last year)
-      decision.matrix[y2] <- N.male$patch.last.year[y2]
+choice.fun <- function(N.male, patches){
+  for(i in 1:nrow(N.male)){ #for each male
+    if (N.male$nr.offspring[i]>0){ #If reproductive success is greater than 0 patch stays the same (from last year)
+      N.male$patch[i] <- N.male$patch.last.year[i]
     }
     else{ #Otherwise the patch is changed in contrary patch 
-      if(N.male$patch.last.year[y2]==1){
-        decision.matrix[y2] <- 2
-      }
-      else{
-        decision.matrix[y2] <- 1
+       N.male$patch[i] <- (N.male$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1
       }
     }
-    N.male[y2,2] <- decision.matrix[y2]
-  }
   return(N.male) #New patch is written into patch column in male matrix
 }
 
 
-choice.fun.females <- function(N.female,p,u,N.last1,N.last2){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
+choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #determines the patch choice for females, depending on last years N (from patch where female was born) as well as trait (philopatry)
   
   N.last <- c(N.last1,N.last2) #get the population size from the previous year per patch
   #Add philopatric decision (parameter set at the beginning)
@@ -148,7 +141,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
 
 
 
-mortality <- function(N){
+mortality <- function(N, surv){
   1-(plogis(qlogis(surv)-(N-600)*0.005)) #carying capacity with ~500 individuals total 
 }
 
@@ -236,10 +229,10 @@ mortality <- function(N){
         
         if(nrow(population.total[population.total$gender=="male",])>0){
           
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-1),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
-          population.total[population.total$survival<(age-1)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
-          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-1),])>0){
-          population.total[population.total$survival>=(age-1)&population.total$gender=="male",]$repro <- 0 #males that are not old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival<(age-3),])>0){ #are there any males that are over 3 years old --> Hoffman 2003 'MALE REPRODUCTIVE STRATEGY AND THE IMPORTANCE OF MATERNAL STATUS IN THE ANTARCTIC FUR SEAL ARCTOCEPHALUS GAZELLA'
+          population.total[population.total$survival<(age-3)&population.total$gender=="male",]$repro <- 1 #males that are old enough get a 1 to make sure they can compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
+          if(nrow(population.total[population.total$gender=="male"&population.total$survival>=(age-3),])>0){
+          population.total[population.total$survival>=(age-3)&population.total$gender=="male",]$repro <- 0 #males that are not old enough get a 0 to make sure they cannot compete and reproduce afterwards, will be changed when they loose fight (dont obtain a territory)
         
         ##### 
         
@@ -249,9 +242,11 @@ mortality <- function(N){
         
         ##### MALE PATCH CHOICE - WHICH PATCH THEY GO #####
         patchbook_males <- c()
-        N.male <- choice.fun(population.males, population.total, N.male) #Males decide where to go this year depending on last years success
+        N.male <- choice.fun(N.male, patches) #Males decide where to go this year depending on last years success
         patchbook_males <- N.male$patch #overwrite patch from previous year
         population.total[population.total$gender=='male'&population.total$repro==1,]$patch <- patchbook_males
+        
+        population.total[population.total$gender=='male'&population.total$repro==1,]$nr.offspring <- rep(0,nrow(N.male))
         
         ##### MALE PATCH CHOICE END #####
         
@@ -343,7 +338,7 @@ mortality <- function(N){
         N.female <- subset(population.total,population.total$gender=="female")
         if(nrow(N.female)>0){ #are there any females?
         patchbook_females <- c()
-        N.female <- choice.fun.females(N.female,p,u,N.last1,N.last2) #patch choice this year, depending on philopatry trait and last years density on birth patch
+        N.female <- choice.fun.females(N.female,p,u,N.last1,N.last2, patches) #patch choice this year, depending on philopatry trait and last years density on birth patch
         patchbook_females <- N.female$patch
         population.total[population.total$gender=='female',]$patch <- patchbook_females #overwrite patch choice from before       
         }
@@ -511,7 +506,7 @@ mortality <- function(N){
         population.total$survival <- population.total$survival-1 #every adult loses one survival counter per generation
         
         #random Death:
-        die <- mortality(N) #get density dependend mortality rate (=die)
+        die <- mortality(N,surv) #get density dependend mortality rate (=die)
         
         dying.individuals <- runif(nrow(population.total),0,1) < die #for each individual is a random number distributed. if the number is below the deathrate the individual is written into a vector
         population.total$survival[dying.individuals] <- 0 #the individuals that where written into the vector below, become a 0 in their survival
@@ -558,7 +553,7 @@ mortality <- function(N){
 
 #Run function
 #debug(simulation.fun)
-statistic <- simulation.fun()
+#statistic <- simulation.fun()
 
 
 
