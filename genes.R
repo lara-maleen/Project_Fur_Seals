@@ -14,5 +14,5 @@ FunctionGvalues <- function(nbLoci=10,nbAlleles=10,min_phen=0,max_phen=1) {
   return(gvalues)
 }
 
-gen_phen_map <- FunctionGvalues(10,10,min_phen=-3,max_phen=1)
+gen_phen_map <- FunctionGvalues(10,10,min_phen=1,max_phen=50)
 saveRDS(gen_phen_map, file="genes.rds")
