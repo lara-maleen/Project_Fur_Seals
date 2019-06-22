@@ -12,10 +12,10 @@ simulation.fun <- function(time=100, #number of generations
                            die.fight=0.35, #propability to die from fight
                            loci.col=c(14:53), #in which columns of the pop matrix are the loci?
                            p= 0, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense is philopatry influence
-                           u = 40, #assumed normal average density (for each patch), used for female patch choice function
+                           u = 100, #assumed normal average density (for each patch), used for female patch choice function
                            i=-0.8, #intercept for infanticide function
                            s=1.8, #slope for infanticide function
-                           surv=0.8 #survival for total population 
+                           surv=0.85 #survival for total population 
 ){
 
 #setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals")
@@ -38,17 +38,17 @@ trait.fun <- function(population.total,value.matrix, loci.matrix, gen_phen_map, 
   #Male Trait Value
   value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
   for(y in 1:nrow(population.total)){ #for each individual
-    for(z in 1:10){ 
-      value.matrix[y,z] <- 10*(gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #slope multiplied with output from genmap
+    for(z in 1:10){ #for number of alleles
+      value.matrix[y,z] <- (gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #slope multiplied with output from genmap
     }
-    population.total[y,4] <- abs(sum(value.matrix[y,]))+1
+    population.total[y,4] <- abs(sum(value.matrix[y,]))
   }
   
   #Female Trait Value:
   value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
   for(y2 in 1:nrow(population.total)){ #for each individual
     for(z2 in 1:10){ 
-      value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2],loci.matrix[y2,10+z2],z2] 
+      value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2+20],loci.matrix[y2,10+z2+20],z2] 
     }
     population.total[y2,5] <- (sum(value.matrix[y2,]))
   }
@@ -79,13 +79,13 @@ choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #determin
   
   for (i in 1:length(p.patch)){
     
-    if (isTRUE(p.patch[i])){ #if this is true, than female go to the patch it was born
+    if (p.patch[i]){ #if this is true, than female go to the patch it was born
       N.female$patch[i] <- N.female$patch.born[i]
     }
     
     else{ #otherwise the female gets a new TRUE or FAlSE depending on the density of last years patch 
       patch.u  <- plogis(N.female$female.trait[i]*(N.last[N.female$patch[i]] - u)) > runif(1,0,1)
-      if (isTRUE(patch.u)){ #if that is true, the patch is changed to the other patch  
+      if ((patch.u)){ #if that is true, the patch is changed to the other patch  
         N.female$patch[i] <- (N.female$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1
       }
     }
@@ -97,13 +97,13 @@ choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #determin
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
   
   ### 1.) Males choose their territory in this patch
-  for(p2 in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
-    if(nrow(N.male[N.male$patch==p2&N.male$terr==0,])>0){ #Are their any males in the patch (with no territory yet)
-      ID.terr.males <- matrix(NA, nrow=nrow(N.male[N.male$patch==p2&N.male$terr==0,]), ncol=2)
-      ID.terr.males[,1] <- N.male[N.male$patch==p2&N.male$terr==0,]$ID #get IDs of males that have no territory yet
-      for(i2 in 1:nrow(ID.terr.males)){ #go through all males 
-        ID.terr.males[i2,2] <- sample(territories[p2], 1) #randomly decide which territory male goes to
-        N.male[N.male$ID==ID.terr.males[i2,1],]$terr <- ID.terr.males[i2,2] #write the territory number in matrix of males in this patch 
+  for(p in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
+    if(nrow(N.male[N.male$patch==p&N.male$terr==0,])>0){ #Are their any males in the patch (with no territory yet)
+      ID.terr.males <- matrix(NA, nrow=nrow(N.male[N.male$patch==p&N.male$terr==0,]), ncol=2)
+      ID.terr.males[,1] <- N.male[N.male$patch==p&N.male$terr==0,]$ID #get IDs of males that have no territory yet
+      for(i in 1:nrow(ID.terr.males)){ #go through all males 
+        ID.terr.males[i,2] <- sample(territories[p], 1) #randomly decide which territory male goes to
+        N.male[N.male$ID==ID.terr.males[i,1],]$terr <- ID.terr.males[i,2] #write the territory number in matrix of males in this patch 
       }#End individual's loop
     }
   }#End 1.) patch loop
@@ -121,7 +121,7 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
           winner <- winner[1,]
         }
         matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
-        for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to NA
+        for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to 0
           matrix.terr$terr[i4] <- 0
         }
         male.matrix2 <- rbind(male.matrix2, winner, matrix.terr) #Safe new info in matrix 
@@ -205,7 +205,7 @@ mortality <- function(N, surv){
     population <- nrow(population.total) #number of individuals
     
     for(x in 1:population){ #LOOP OVER THE INDIVIDUALS
-      population.total[x,loci.col] <- ceiling(runif(40,1e-16,10)) #each individual has 20 random numbers (first 10:row //last 10:column)
+      population.total[x,loci.col] <- ceiling(runif(40,1e-16,10)) #each individual has 40 random numbers (first 10:row //last 10:column), the first 20 are for male trait, the last 20 for female trait
     }
     
     loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
@@ -264,7 +264,7 @@ mortality <- function(N, surv){
         dying.males[,1] <- population.total[population.total$gender=="male"&population.total$terr==0&population.total$repro==1,]$ID #IDS of the males are written here 
         dying.males.ID <- c()
         dying.males.ID <- dying.males[,1][dying.males[,2]==1] #IDs of the males that died are stored
-        for(d2 in dying.males.ID){ #go trough the died males and change survival number and the loci matrix 
+        for(d2 in dying.males.ID){ #go trough the died males and change survival number
           population.total[population.total$ID==d2,]$survival <- 0
         }
         
@@ -313,7 +313,7 @@ mortality <- function(N, surv){
         ##### CHOOSE MALES FOR REPRODUCTION ####
         
         population.total[population.total$terr>0&population.total$gender=="male",]$repro <- 1 #males that obtained territory during competition are able to reproduce
-        population.total[population.total$terr==0&population.total$gender=="male",]$repro <- 0 #males that obtained territory during competition are able to reproduce
+        population.total[population.total$terr==0&population.total$gender=="male",]$repro <- 0 #males that did not obtain territory during competition are not able to reproduce
         N.male <- subset(population.total,population.total$gender=="male"&population.total$repro==1) #change male matrix 
         
         }
@@ -418,10 +418,10 @@ mortality <- function(N, surv){
                     loci.child <- rep(0,length(loci.col)) #empty vector with fixed length for the locis of the offspring
                     
                     for(o in 1:offspring.vector[u]){ #START LOOP NUMBER CHILDREN per female
-                      loci.child[1:10] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
-                      loci.child[11:20] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
-                      loci.child[21:30] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the mother
-                      loci.child[31:40] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled from the father
+                      loci.child[1:10] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis for male trait sampled from the mother (this is the allele row)
+                      loci.child[11:20] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled for male trait from the father (this is allele column)
+                      loci.child[21:30] <- loci.mother[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled for female trait from the mother (this is the allele row)
+                      loci.child[31:40] <- loci.father[(1:10) +sample(c(0,10),10,replace=TRUE)] #the offspring becomes 10 locis sampled for female trait from the father (this is allele column)
                       #total sum of loci = 40
                       loci.child <- unlist(loci.child)
                       
@@ -523,10 +523,10 @@ mortality <- function(N, surv){
         population.N[t] <- nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
         population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for all individuals that reproduced
         population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for all ind. that reproduced 
-        population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1,]$trait)  #average trait-value from males for patch 1  for first generation
-        population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2,]$trait) #average trait-value from males for patch 2  for first generation
-        population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1,]$female.trait)  #average trait-value from females for patch 1  for first generation
-        population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2,]$female.trait) #average trait-value from females for patch 2  for first generation
+        population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$trait)  #average trait-value from males for patch 1  for first generation
+        population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$trait) #average trait-value from males for patch 2  for first generation
+        population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1&population.total$repro==1,]$female.trait)  #average trait-value from females for patch 1  for first generation
+        population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2&population.total$repro==1,]$female.trait) #average trait-value from females for patch 2  for first generation
         population.males1[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]) #Number of males in patch 1  for first generation
         population.males2[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]) #Number of males in patch 2  for first generation
         population.females1[t] <- nrow(population.total[population.total$gender=="female"&population.total$patch==1,]) #Number of females in patch 1  for first generation
