@@ -3,27 +3,31 @@
 #Code for running in cluster (without replicates and storing information in matrix every t)
 rm(list=ls())
 
-##### START SIMULATION.RUN-FUNCTION #####
-simulation.fun <- function(time=100, #number of generations
-                           age=15, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
-                           patches=2, #number of Patches (two different sites: high/low density)
-                           territories=c(50,50), #number of territories per patch
-                           mutate=0.05, #mutation factor
-                           die.fight=0.35, #propability to die from fight/competition
-                           loci.col=c(14:53), #loci column numbers of the pop matrix 
-                           p= 0.5, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense the philopatric (side-fidelity) influence
-                           u = 100, #assumed normal average density (for each patch), used for female patch choice function
-                           i=-0.8, #intercept for infanticide function
-                           s=1.8, #slope for infanticide function
-                           surv=0.90 #survival for total population 
-){
 
-setwd("~/Studium/WHK/WHK Bielefeld Meike/Project_Fur_Seals") 
+##### START SIMULATION.RUN-FUNCTION #####
+# simulation.fun <- function(
+  time=100#, #number of generations
+                           age=15#, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
+                           patches=2#, #number of Patches (two different sites: high/low density)
+                           territories=c(50,50)#, #number of territories per patch
+                           mutate=0.05#, #mutation factor
+                           die.fight=0.35#, #propability to die from fight/competition
+                           loci.col=c(14:53)#, #loci column numbers of the pop matrix 
+                           p= 0.25#, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense the philopatric (side-fidelity) influence
+                           u = 100#, #assumed normal average density (for each patch), used for female patch choice function
+                           i=-0.8#, #intercept for infanticide function
+                           s=1.8#, #slope for infanticide function
+                           surv=0.75#, #survival for total population 
+                           gene_file1="genes.rds"#,
+                           gene_file2="genes2.rds"
+# ){
+
+# profvis({
   
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 #gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
-gen_phen_map <- readRDS('genes.rds') #load the gene array (10 loci, 10 alleles), used for male trait values
-gen_phen_map2 <- readRDS('genes2.rds') #second gene map for female trait value (10 loci, 10 alleles). Phenotype of -0.2 and +0.2 initially
+gen_phen_map <- readRDS(gene_file1) #load the gene array (10 loci, 10 alleles), used for male trait values
+gen_phen_map2 <- readRDS(gene_file2) #second gene map for female trait value (10 loci, 10 alleles). Phenotype of -0.2 and +0.2 initially
   
 ##### FUNCTIONS #####
 
@@ -103,48 +107,50 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
   for(p in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
     if(nrow(N.male[N.male$patch==p&N.male$terr==0,])>0){ #Are their any males in the patch (with no territory yet)
       ID.terr.males <- matrix(NA, nrow=nrow(N.male[N.male$patch==p&N.male$terr==0,]), ncol=2) #new matrix for storing IDs
-      ID.terr.males[,1] <- N.male[N.male$patch==p&N.male$terr==0,]$ID #get IDs of males that have no territory yet
-      
-      for(i in 1:nrow(ID.terr.males)){ #go through all males that have no territory
-        ID.terr.males[i,2] <- sample(territories[p], 1) #randomly decide which territory male goes to 
-        N.male[N.male$ID==ID.terr.males[i,1],]$terr <- ID.terr.males[i,2] #write the territory number in matrix of males in this patch 
-      }#End individual's loop
+      ID.terr.males[,1] <- N.male[N.male$patch==p & N.male$terr==0,]$ID #get IDs of males that have no territory yet
+      ID.terr.males[,2] <- sample(territories[p],nrow(ID.terr.males), replace=TRUE)
+      N.male$terr[match(ID.terr.males[,1],N.male$ID)] <- ID.terr.males[,2] #write the territory number in matrix of males in this patch 
     }
   }#End 1.) patch loop
   
   ### 2) Males compete for their territory - the one with highest quality trait obtains it
-  
-  male.matrix <- c() #for storing the males for all patches
-  
-  for(p3 in 1:patches){ #Go again trough all patches
-    male.matrix2 <- c() #for storing the males per patch
-    
-    for(t in 1:territories[p3]){ #loop over all territory numbers (1-50)
-      matrix.terr <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #Choose all males in this particular territory (as matrix)
-      
-      if(nrow(matrix.terr)>=2){ #If there are at least two in the territory...
-        winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
-        if(nrow(winner)>1){ #if trait values are equal, more rows in winner matrix than 1: decide to take the first male in matrix. That equals the case, that the male that was first at territory, obtains it 
-          winner <- winner[1,]
-        }
-        matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
-        for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to 0
-          matrix.terr$terr[i4] <- 0
-        }
-        male.matrix2 <- rbind(male.matrix2, winner, matrix.terr) #Safe new info in patch matrix 
-      }
-      
-      else{ #What happens when there is just one male (or zero) in this territory? 
-        winner <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #He "wins" and is added to patch matrix 
-        male.matrix2 <- rbind(male.matrix2, winner) 
-      }
-      
-    }#End territory loop
-    male.matrix <- rbind(male.matrix,male.matrix2) #add patch matrix, so that all males get stored (from each patch)
-  }#End 2) step
-  
-  N.male <- male.matrix #the male matrix is not sorted (that will happen with sorting the IDs afterwards in simulation)
-  
+
+  max_per_terr <- aggregate(N.male$trait,by=list(patch = N.male$patch,terr = N.male$terr),max)
+  max_per_terr$dum <- paste(max_per_terr$patch,max_per_terr$terr,sep="-")
+  dum <- paste(N.male$patch,N.male$terr,sep="-")
+  matched_max <- max_per_terr$x[match(dum,max_per_terr$dum)]
+  N.male$terr[N.male$trait < matched_max] <- 0
+  # male.matrix <- c() #for storing the males for all patches
+  # 
+  # for(p3 in 1:patches){ #Go again trough all patches
+  #   male.matrix2 <- c() #for storing the males per patch
+  #   
+  #   for(t in 1:territories[p3]){ #loop over all territory numbers (1-50)
+  #     matrix.terr <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #Choose all males in this particular territory (as matrix)
+  #     
+  #     if(nrow(matrix.terr)>=2){ #If there are at least two in the territory...
+  #       winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
+  #       if(nrow(winner)>1){ #if trait values are equal, more rows in winner matrix than 1: decide to take the first male in matrix. That equals the case, that the male that was first at territory, obtains it 
+  #         winner <- winner[1,]
+  #       }
+  #       matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
+  #       for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to 0
+  #         matrix.terr$terr[i4] <- 0
+  #       }
+  #       male.matrix2 <- rbind(male.matrix2, winner, matrix.terr) #Safe new info in patch matrix 
+  #     }
+  #     
+  #     else{ #What happens when there is just one male (or zero) in this territory? 
+  #       winner <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #He "wins" and is added to patch matrix 
+  #       male.matrix2 <- rbind(male.matrix2, winner) 
+  #     }
+  #     
+  #   }#End territory loop
+  #   male.matrix <- rbind(male.matrix,male.matrix2) #add patch matrix, so that all males get stored (from each patch)
+  # }#End 2) step
+  # 
+  # N.male <- male.matrix #the male matrix is not sorted (that will happen with sorting the IDs afterwards in simulation)
+  # 
   return(N.male)
   
 }
@@ -553,14 +559,16 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     #Stored summary statistic formatted for output data
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
     colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
-    return(statistic.matrix)
-    
-}#END SIMULATION.RUN
+    # return(statistic.matrix)
+# })  
+# }#END SIMULATION.RUN
 
 #Run function
 #debug(simulation.fun)
-statistic <- simulation.fun()
-
+# library(profvis)
+# # profvis({
+# statistic <- simulation.fun()
+# })
 
 
 
