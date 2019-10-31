@@ -22,13 +22,13 @@ rm(list=ls())
                            gene_file2="genes2.rds"
 # ){
 
-# profvis({
+profvis({
   
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 #gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 gen_phen_map <- readRDS(gene_file1) #load the gene array (10 loci, 10 alleles), used for male trait values
 gen_phen_map2 <- readRDS(gene_file2) #second gene map for female trait value (10 loci, 10 alleles). Phenotype of -0.2 and +0.2 initially
-  
+gen_phen_map2 <- array(round(runif(1e3),2),dim=c(10,10,10))
 ##### FUNCTIONS #####
 
 
@@ -40,25 +40,46 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION: for each individual a new ID
   
 
 trait.fun <- function(population.total,value.matrix, loci.matrix, gen_phen_map, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
-  
+
   #Male Trait Value
-  value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
-  for(y in 1:nrow(population.total)){ #for each individual
-    for(z in 1:10){ #for number of loci
-      value.matrix[y,z] <- (gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #get value from gene map 1 (this is the male trait gene map), go through all loci and see what alleles individual have
-    }
-    population.total[y,4] <- abs(sum(value.matrix[y,])) #calculate additive phenotypic trait value, stored in column number 4 (male trait value)
-  }
+  # value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
+  # for(y in 1:nrow(population.total)){ #for each individual
+  #   for(z in 1:10){ #for number of loci
+  #     value.matrix[y,z] <- (gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #get value from gene map 1 (this is the male trait gene map), go through all loci and see what alleles individual have
+  #   }
+  #   population.total[y,4] <- abs(sum(value.matrix[y,])) #calculate additive phenotypic trait value, stored in column number 4 (male trait value)
+  # }
+  # 
+  
+  # for the male trait value
+  lc1 <- as.numeric(t(loci.matrix[,1:10]))
+  lc2 <- as.numeric(t(loci.matrix[,11:20]))
+  zs <- rep(1:10,nrow(population.total))
+  phen <- gen_phen_map[cbind(lc1,lc2,zs)]
+  population.total[,4] <- colSums(matrix(phen,nrow=10))
+  #                                 
+  # if(!all(colSums(matrix(phen,nrow=10)) -population.total[,4] == 0)){
+  # stop("help")
+  # }
   
   #Female Trait Value:
-  value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
-  for(y2 in 1:nrow(population.total)){ #for each individual
-    for(z2 in 1:10){ #for each loci 
-      value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2+20],loci.matrix[y2,10+z2+20],z2] #get value from gene map 2 (female trait gene map), loci columns 21-40 in pop matrix (i.e. loci matrix 21-40)
-    }
-    population.total[y2,5] <- (sum(value.matrix[y2,])) #calculate additive phenotypic trait value, stored in column number 5 (female trait value)
-  }
+  lc1 <- as.numeric(t(loci.matrix[,21:30]))
+  lc2 <- as.numeric(t(loci.matrix[,31:40]))
+  zs <- rep(1:10,nrow(population.total))
+  phen <- gen_phen_map2[cbind(lc1,lc2,zs)]
+  population.total[,5] <- colSums(matrix(phen,nrow=10))
   
+  # value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
+  # for(y2 in 1:nrow(population.total)){ #for each individual
+  #   for(z2 in 1:10){ #for each loci 
+  #     value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2+20],loci.matrix[y2,10+z2+20],z2] #get value from gene map 2 (female trait gene map), loci columns 21-40 in pop matrix (i.e. loci matrix 21-40)
+  #   }
+  #   population.total[y2,5] <- (sum(value.matrix[y2,])) #calculate additive phenotypic trait value, stored in column number 5 (female trait value)
+  # }
+  # 
+  # print(all(colSums(matrix(phen,nrow=10)) -population.total[,5] == 0))
+  # stop("help")
+  # }
   return(population.total) 
 }
 
@@ -119,38 +140,9 @@ competition.fun <- function(N.male, patches, population.males, territories){ #LE
   max_per_terr$dum <- paste(max_per_terr$patch,max_per_terr$terr,sep="-")
   dum <- paste(N.male$patch,N.male$terr,sep="-")
   matched_max <- max_per_terr$x[match(dum,max_per_terr$dum)]
-  N.male$terr[N.male$trait < matched_max] <- 0
-  # male.matrix <- c() #for storing the males for all patches
-  # 
-  # for(p3 in 1:patches){ #Go again trough all patches
-  #   male.matrix2 <- c() #for storing the males per patch
-  #   
-  #   for(t in 1:territories[p3]){ #loop over all territory numbers (1-50)
-  #     matrix.terr <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #Choose all males in this particular territory (as matrix)
-  #     
-  #     if(nrow(matrix.terr)>=2){ #If there are at least two in the territory...
-  #       winner <- matrix.terr[matrix.terr$trait==(max(matrix.terr[,"trait"])),] #That's the WINNER in this territory
-  #       if(nrow(winner)>1){ #if trait values are equal, more rows in winner matrix than 1: decide to take the first male in matrix. That equals the case, that the male that was first at territory, obtains it 
-  #         winner <- winner[1,]
-  #       }
-  #       matrix.terr <- matrix.terr[which(matrix.terr$ID!=winner$ID),] #remove winner from matrix
-  #       for (i4 in 1:nrow(matrix.terr)){ #For the looser(s) change territory to 0
-  #         matrix.terr$terr[i4] <- 0
-  #       }
-  #       male.matrix2 <- rbind(male.matrix2, winner, matrix.terr) #Safe new info in patch matrix 
-  #     }
-  #     
-  #     else{ #What happens when there is just one male (or zero) in this territory? 
-  #       winner <- N.male[which(N.male[,"terr"]==t&N.male[,"patch"]==p3),] #He "wins" and is added to patch matrix 
-  #       male.matrix2 <- rbind(male.matrix2, winner) 
-  #     }
-  #     
-  #   }#End territory loop
-  #   male.matrix <- rbind(male.matrix,male.matrix2) #add patch matrix, so that all males get stored (from each patch)
-  # }#End 2) step
-  # 
-  # N.male <- male.matrix #the male matrix is not sorted (that will happen with sorting the IDs afterwards in simulation)
-  # 
+  N.male$terr[N.male$trait < matched_max] <- 0 
+  N.male$terr[N.male$terr!=0 & duplicated(N.male$terr)] <- 0 # what if there are multiple males with the same, maximum, trait value
+  
   return(N.male)
   
 }
@@ -279,9 +271,8 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         dying.males[,1] <- population.total[population.total$gender=="male"&population.total$terr==0&population.total$repro==1,]$ID #IDS of the males are written here 
         dying.males.ID <- c()
         dying.males.ID <- dying.males[,1][dying.males[,2]==1] #IDs of the males that died are stored
-        for(d2 in dying.males.ID){ #go trough the died males and change survival number
-          population.total[population.total$ID==d2,]$survival <- 0
-        }
+        population.total[population.total$ID %in% dying.males,]$survival <- 0
+
         
         #Update all population info after males died 
         population.total <-subset(population.total,population.total$survival>0) #population matrix: Individuals which have a survival higher then 0 stay alive in the dataframe. the others are deleted
@@ -292,12 +283,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         
         #Let males that lost in previous fight switch to other patch
         males.patch.shift <- N.male[N.male$terr==0,]$ID #get the males that didnt obtain territory, they shift patches (ID is safed) 
-        
-        if(length(males.patch.shift>0)){
-          for(i9 in 1:length(males.patch.shift)){
-            N.male[N.male$ID==males.patch.shift[i9],]$patch <- (N.male[N.male$ID==males.patch.shift[i9],]$patch - 1 + floor(runif(1,1,patches)))%%patches + 1
-          }
-        }
+        N.male$patch[N.male$terr==0] <- (N.male$patch[N.male$terr==0] - 1 + floor(runif(1,1,patches)))%%patches + 1
         
         patchbook_males <- c()
         patchbook_males <- N.male$patch 
@@ -496,9 +482,8 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
                 dying.offspring[,1] <- population.offspring$ID
                 dying.offspring.ID <- c()
                 dying.offspring.ID <- dying.offspring[,1][dying.offspring[,2]==1]
-                for(d3 in dying.offspring.ID){
-                  population.offspring[population.offspring$ID==d3,]$survival <- 0
-                }
+                population.offspring[population.offspring$ID %in% dying.offspring.ID,]$survival <- 0
+
                 
                 population.offspring <-subset(population.offspring,population.offspring$survival>0) #remove all dead offspring
                 
@@ -560,7 +545,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
     colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
     # return(statistic.matrix)
-# })  
+ })  
 # }#END SIMULATION.RUN
 
 #Run function
