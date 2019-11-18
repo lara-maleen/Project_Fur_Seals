@@ -6,7 +6,8 @@ switch(Sys.info()['user'],
 source("IBM_fur_seals_Lara_cluster.R")
 
 # undebug(simulation.fun)
-newdat <- simulation.fun()
+# undebug(simulation.fun)
+newdat <- simulation.fun(p=0.1,time=100)
 
 # simulation.fun()
 str(newdat)

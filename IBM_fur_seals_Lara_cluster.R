@@ -8,30 +8,28 @@ setwd("/home/koen/Documents/projects/Project_Fur_Seals/")
 sample.vec <- function(x, ...) x[sample.int(length(x), ...)] 
 
 ##### START SIMULATION.RUN-FUNCTION #####
-# simulation.fun <- function(
-  time=100#, #number of generations
-                           age=15#, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
-                           patches=2#, #number of Patches (two different sites: high/low density)
-                           territories=c(50,50)#, #number of territories per patch
-                           mutate=0.05#, #mutation factor
-                           die.fight=0.35#, #propability to die from fight/competition
-                           loci.col=c(14:53)#, #loci column numbers of the pop matrix 
-                           p= 0.25#, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense the philopatric (side-fidelity) influence
-                           u = 100#, #assumed normal average density (for each patch), used for female patch choice function
-                           i=-0.8#, #intercept for infanticide function
-                           s=1.8#, #slope for infanticide function
-                           surv=0.75#, #survival for total population 
-                           gene_file1="genes.rds"#,
+simulation.fun <- function(
+                           time=1e4, #number of generations
+                           age=15, #age limit for an individual; life span for A. gazella. 15-25 years --> literature!?
+                           patches=2, #number of Patches (two different sites: high/low density)
+                           territories=c(50,50), #number of territories per patch
+                           mutate=0.05, #mutation factor
+                           die.fight=0.35, #propability to die from fight/competition
+                           loci.col=c(14:53), #loci column numbers of the pop matrix 
+                           p= 0.25, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense the philopatric (side-fidelity) influence
+                           u = 80, #assumed normal average density (for each patch), used for female patch choice function
+                           i=-0.8, #intercept for infanticide function
+                           s=1.8, #slope for infanticide function
+                           surv=0.9, #survival for total population 
+                           gene_file1="genes.rds",
                            gene_file2="genes2.rds"
-# ){
+ ){
 
-profvis({
-  
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 #gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 gen_phen_map <- readRDS(gene_file1) #load the gene array (10 loci, 10 alleles), used for male trait values
 gen_phen_map2 <- readRDS(gene_file2) #second gene map for female trait value (10 loci, 10 alleles). Phenotype of -0.2 and +0.2 initially
-gen_phen_map2 <- array(round(runif(1e3),2),dim=c(10,10,10))
+
 ##### FUNCTIONS #####
 
 
@@ -45,14 +43,6 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION: for each individual a new ID
 trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
 
   #Male Trait Value
-  # value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
-  # for(y in 1:nrow(population.total)){ #for each individual
-  #   for(z in 1:10){ #for number of loci
-  #     value.matrix[y,z] <- (gen_phen_map[loci.matrix[y,z],loci.matrix[y,10+z],z]) #get value from gene map 1 (this is the male trait gene map), go through all loci and see what alleles individual have
-  #   }
-  #   population.total[y,4] <- abs(sum(value.matrix[y,])) #calculate additive phenotypic trait value, stored in column number 4 (male trait value)
-  # }
-  # 
   
   # for the male trait value
   lc1 <- as.numeric(t(loci.matrix[,1:10]))
@@ -60,10 +50,6 @@ trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2
   zs <- rep(1:10,nrow(population.total))
   phen <- gen_phen_map[cbind(lc1,lc2,zs)]
   population.total[,4] <- colSums(matrix(phen,nrow=10))
-  #                                 
-  # if(!all(colSums(matrix(phen,nrow=10)) -population.total[,4] == 0)){
-  # stop("help")
-  # }
   
   #Female Trait Value:
   lc1 <- as.numeric(t(loci.matrix[,21:30]))
@@ -72,17 +58,6 @@ trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2
   phen <- gen_phen_map2[cbind(lc1,lc2,zs)]
   population.total[,5] <- colSums(matrix(phen,nrow=10))
   
-  # value.matrix <- matrix(NA,nrow(population.total),ncol=10) #empty matrix for the trait values for each loci
-  # for(y2 in 1:nrow(population.total)){ #for each individual
-  #   for(z2 in 1:10){ #for each loci 
-  #     value.matrix[y2,z2] <- gen_phen_map2[loci.matrix[y2,z2+20],loci.matrix[y2,10+z2+20],z2] #get value from gene map 2 (female trait gene map), loci columns 21-40 in pop matrix (i.e. loci matrix 21-40)
-  #   }
-  #   population.total[y2,5] <- (sum(value.matrix[y2,])) #calculate additive phenotypic trait value, stored in column number 5 (female trait value)
-  # }
-  # 
-  # print(all(colSums(matrix(phen,nrow=10)) -population.total[,5] == 0))
-  # stop("help")
-  # }
   return(population.total) 
 }
 
@@ -373,8 +348,10 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
               offs[,c('trait','female.trait','terr','repro','nr.offspring')] <- 0
               offs$survival <- age
               offs$ID <- ID.scan:(ID.scan+nrow(offs)-1) # resetting some of the columns
-              ID.scan <<- ID.scan + nrow(offs)
-
+              cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
+              ID.scan <- ID.scan + nrow(offs)
+              cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
+              flush.console()
               fat.dum <- expand.grid(loc=c(1:10,21:30), fat = fat.row)
               mot.dum <- expand.grid(loc=c(1:10,21:30), mot = mot.row)
               
@@ -460,9 +437,8 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     #Stored summary statistic formatted for output data
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
     colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
-    # return(statistic.matrix)
- })  
-# }#END SIMULATION.RUN
+    return(statistic.matrix)
+}#END SIMULATION.RUN
 
 #Run function
 #debug(simulation.fun)
