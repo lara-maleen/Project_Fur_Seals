@@ -357,7 +357,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         #Check if male and female are in same patch for mating:
         tryst <- c(rep(0,patches))
         N.female <- c()
-        
+        offspring.vector <- 0
         for(pls in 1:patches){#in which patches are both males and females
           if(
             nrow(subset(population.total,population.total$patch==pls&population.total$gender=="male"&population.total$repro==1))>0 &
@@ -376,7 +376,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         
         if(max(tryst)==2){ #IS OFFSPRING POSSIBLE? If one patch contains both genders then tyst has a level of 2
           N.0 <- N/500
-          offspring.vector <- 0
+          
           
           if(nrow(N.female)>0){ #number of offspring per female
             offspring.vector <- rep(1,nrow(N.female)) #each female gets one pup 
@@ -436,7 +436,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
                       
                       #MUTATION
                       if(runif(1,0,1) < mutate){ #if a random number is lower than the mutationrate the offspring becomes a random distributed loci
-                        loci.child[round(runif(1,1,40))] <- round(runif(1,1,10)) #the first runif selects the mutated loci and the second runif determines the new loci value (1-10 alleles)
+                        loci.child[round(runif(1,1,10))] <- round(runif(1,1,10)) #the first runif selects the mutated loci and the second runif determines the new loci value (1-10 alleles)
                       }
                       
                       loci.child <- unlist(loci.child)
@@ -559,7 +559,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
 
 #Run function
 #debug(simulation.fun)
-statistic <- simulation.fun()
+#statistic <- simulation.fun()
 
 
 

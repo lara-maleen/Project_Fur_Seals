@@ -348,10 +348,10 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
               offs[,c('trait','female.trait','terr','repro','nr.offspring')] <- 0
               offs$survival <- age
               offs$ID <- ID.scan:(ID.scan+nrow(offs)-1) # resetting some of the columns
-              cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
+              # cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
               ID.scan <- ID.scan + nrow(offs)
-              cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
-              flush.console()
+              # cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
+              # flush.console()
               fat.dum <- expand.grid(loc=c(1:10,21:30), fat = fat.row)
               mot.dum <- expand.grid(loc=c(1:10,21:30), mot = mot.row)
               
@@ -363,6 +363,13 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
               
               offs[,loci.col] <- cbind(off.loc.m[,1:10],off.loc.f[,1:10],off.loc.m[,11:20],off.loc.f[,11:20])
 
+              # mutate
+              mut_inds <- runif(nrow(offs)) < mutate
+              if(any(mut_inds)){
+                # print(which(mut_inds))
+                offs[cbind(which(mut_inds),sample(loci.col[1:40],sum(mut_inds),replace=TRUE))] <- sample(1:10,sum(mut_inds),replace=TRUE)
+              }
+              
               test_fun <- function(i){
                 gen.own <- offs[i,loci.col]
                 fat.source <- N.male[fat.row[i],loci.col]
