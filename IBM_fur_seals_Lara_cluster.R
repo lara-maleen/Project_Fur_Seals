@@ -49,28 +49,24 @@ trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2
   lc2 <- as.numeric(t(loci.matrix[,11:20]))
   zs <- rep(1:10,nrow(population.total))
   phen <- gen_phen_map[cbind(lc1,lc2,zs)]
-  population.total[,4] <- colSums(matrix(phen,nrow=10))
-  
+  population.total$trait <- colSums(matrix(phen,nrow=10))
+
   #Female Trait Value:
   lc1 <- as.numeric(t(loci.matrix[,21:30]))
   lc2 <- as.numeric(t(loci.matrix[,31:40]))
   zs <- rep(1:10,nrow(population.total))
   phen <- gen_phen_map2[cbind(lc1,lc2,zs)]
-  population.total[,5] <- colSums(matrix(phen,nrow=10))
+  population.total$female.trait <- colSums(matrix(phen,nrow=10))
   
   return(population.total) 
 }
 
 
 choice.fun <- function(N.male, patches){ #MALE PATCH CHOICE: decide where each adult male goes to this t
-  for(i in 1:nrow(N.male)){ #for each male 
-    if (N.male$nr.offspring[i]>0){ #If reproductive success (offspring number) is greater than 0 patch stays the same (from last year)
-      N.male$patch[i] <- N.male$patch.last.year[i]
-    }
-    else{ #Otherwise the patch is changed in contrary patch 
-       N.male$patch[i] <- (N.male$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1
-      }
-    }
+  
+  # Males that had offspring the year before, stick to the same patch, those that didn't switch patch
+  N.male$patch <- (N.male$patch - 1 + as.numeric(N.male$nr.offspring == 0)*floor(runif(nrow(N.male),1,patches)))%%patches + 1
+
   return(N.male) #New patch is written into patch column in male matrix
 }
 
@@ -83,19 +79,12 @@ choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #FEMALE P
   p.patch <- p > runif(nrow(N.female),0,1) #decide wether female is philopatric or not (stays at birth patch = TRUE), if not then the density-dependent choice takes place
   
   #on the positions where p.patch is TRUE, the patch number is the birth patch:
-  for (i in 1:length(p.patch)){
-    
-    if (p.patch[i]){ #if this is true, than female go to the patch it was born
-      N.female$patch[i] <- N.female$patch.born[i]
-    }
-    
-    else{ #otherwise the female gets a new TRUE or FAlSE depending on the density of last years patch 
-      patch.u  <- plogis(N.female$female.trait[i]*(N.last[N.female$patch[i]] - u)) > runif(1,0,1)
-      if ((patch.u)){ #if that is true, the patch is changed to the other patch  
-        N.female$patch[i] <- (N.female$patch[i] - 1 + floor(runif(1,1,patches)))%%patches + 1
-      }
-    }
-  }
+  N.female$patch[p.patch] <- N.female$patch.born[p.patch]
+  
+  # for the other patches, it is determined whether or not the patch changes from the current patch
+  patch.u  <- plogis(N.female$female.trait[!p.patch]*(N.last[N.female$patch[!p.patch]] - u)) > runif(sum(!p.patch),0,1)
+  N.female$patch[patch.u] <- (N.female$patch[patch.u] - 1 + floor(runif(sum(patch.u),1,patches)))%%patches + 1
+  
   return(N.female)
 }
 
@@ -388,7 +377,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
           population.offspring <- trait.fun(population.offspring, population.offspring[,loci.col], gen_phen_map, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
                 
           #INFATICIDE: Let offspring die with mortality depending on patch density
-          densities <- N.female.patch + N.male.patch    
+          densities <- N.female.patch + N.male.patch
           population.offspring <- population.offspring[!runif(nrow(population.offspring)) < i+s*plogis(0.01*densities[population.offspring$patch]),]
               
           population.total <- rbind(population.total,population.offspring) #the offspring population matrix is added to the general population matrix
@@ -415,7 +404,6 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         
         
         ##### END DEATH #####   
-        
         ###Statistic 2##
         population.N[t] <- nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
         population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for all individuals that reproduced
