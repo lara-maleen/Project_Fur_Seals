@@ -353,10 +353,10 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
               offs[,loci.col] <- cbind(off.loc.m[,1:10],off.loc.f[,1:10],off.loc.m[,11:20],off.loc.f[,11:20])
 
               # mutate
-              mut_inds <- runif(nrow(offs)) < mutate
-              if(any(mut_inds)){
+              mut_loc <- matrix(runif(nrow(offs)*length(loci.col)) < mutate,ncol=length(loci.col))
+              if(any(mut_loc)){
                 # print(which(mut_inds))
-                offs[cbind(which(mut_inds),sample(loci.col[1:40],sum(mut_inds),replace=TRUE))] <- sample(1:10,sum(mut_inds),replace=TRUE)
+                offs[,loci.col][mut_loc] <- sample(1:10,sum(mut_loc),replace=TRUE)
               }
               
               test_fun <- function(i){
