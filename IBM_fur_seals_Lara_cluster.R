@@ -83,8 +83,13 @@ choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #FEMALE P
   
   # for the other patches, it is determined whether or not the patch changes from the current patch
   patch.u  <- plogis(N.female$female.trait[!p.patch]*(N.last[N.female$patch[!p.patch]] - u)) > runif(sum(!p.patch),0,1)
-  N.female$patch[patch.u] <- (N.female$patch[patch.u] - 1 + floor(runif(sum(patch.u),1,patches)))%%patches + 1
-  
+
+  if(any(is.na(patch.u))){
+    print(summary(patch.u))
+  }
+  if(any(patch.u)){
+    N.female$patch[!p.patch][patch.u] <- (N.female$patch[!p.patch][patch.u] - 1 + floor(runif(sum(patch.u),1,patches)))%%patches + 1
+  }
   return(N.female)
 }
 
