@@ -15,20 +15,23 @@ simulation.fun <- function(
                            territories=c(50,50), #number of territories per patch
                            mutate=0.05, #mutation factor
                            die.fight=0.35, #propability to die from fight/competition
-                           loci.col=c(14:53), #loci column numbers of the pop matrix 
                            p= 0.25, #parameter for philopatry function (female patch choice) -> the higher p is, the more intense the philopatric (side-fidelity) influence
                            u = 80, #assumed normal average density (for each patch), used for female patch choice function
                            i=-0.8, #intercept for infanticide function
                            s=1.8, #slope for infanticide function
                            surv=0.9, #survival for total population 
                            gene_file1="genes.rds",
-                           gene_file2="genes2.rds"
+                           gene_file2="genes2.rds",
+                           gene_file3="genes2.rds"
  ){
 
 #gen_phen_map <- readRDS('/data/home/lara/genes.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 #gen_phen_map2 <- readRDS('/data/home/lara/genes2.rds') #load the gene array (10 loci, 10 alleles) #gene map used in cluster
 gen_phen_map <- readRDS(gene_file1) #load the gene array (10 loci, 10 alleles), used for male trait values
 gen_phen_map2 <- readRDS(gene_file2) #second gene map for female trait value (10 loci, 10 alleles). Phenotype of -0.2 and +0.2 initially
+gen_phen_map3 <- readRDS(gene_file3)
+
+nloc <- 2*(dim(gen_phen_map)[3] + dim(gen_phen_map2)[3] + dim(gen_phen_map3)[3])
 
 ##### FUNCTIONS #####
 
@@ -39,24 +42,31 @@ ID.fun <- function(offspring.vector){ #ID-FUNCTION: for each individual a new ID
     return(ID.offspring)
 }
   
+gen_to_phen <- function(loci.matrix, numind, gen_phen_map){
+  breakpoint <- round(ncol(loci.matrix)/2)
+  
+  lc1 <- as.numeric(t(loci.matrix[,1:breakpoint]))
+  lc2 <- as.numeric(t(loci.matrix[,(breakpoint + 1):ncol(loci.matrix)]))
+  zs <- rep(1:(dim(gen_phen_map)[3]),numind)
+  phen <- gen_phen_map[cbind(lc1,lc2,zs)]
+  
+  # cat("\n",breakpoint,"\t",length(lc1),"\t",length(lc2),"\t",length(zs),"\n")
+  
+  colSums(matrix(phen,nrow=10))
+}
 
-trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
+trait.fun <- function(population.total, loci.matrix, gen_phen_map, gen_phen_map2, gen_phen_map3){ #TRAIT-VALUE-FUNCTION - used for male quality + female philopatry trait 
 
   #Male Trait Value
-  
+  # cat(nrow(population.total),"\n\n")
   # for the male trait value
-  lc1 <- as.numeric(t(loci.matrix[,1:10]))
-  lc2 <- as.numeric(t(loci.matrix[,11:20]))
-  zs <- rep(1:10,nrow(population.total))
-  phen <- gen_phen_map[cbind(lc1,lc2,zs)]
-  population.total$trait <- colSums(matrix(phen,nrow=10))
+  population.total$trait <- gen_to_phen(loci.matrix[,1:20],nrow(population.total),gen_phen_map)
 
-  #Female Trait Value:
-  lc1 <- as.numeric(t(loci.matrix[,21:30]))
-  lc2 <- as.numeric(t(loci.matrix[,31:40]))
-  zs <- rep(1:10,nrow(population.total))
-  phen <- gen_phen_map2[cbind(lc1,lc2,zs)]
-  population.total$female.trait <- colSums(matrix(phen,nrow=10))
+  #Female patch choice trait Value:
+  population.total$female.trait <- gen_to_phen(loci.matrix[,21:40],nrow(population.total),gen_phen_map2)
+
+  # Male patch choice
+  population.total$male.trait <- gen_to_phen(loci.matrix[,41:60],nrow(population.total),gen_phen_map3)
   
   return(population.total) 
 }
@@ -130,7 +140,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
 ##### INITIALISATION #####
 
   population.total <- c() #empty vector for the population matrix
-  statistic.matrix <- matrix(ncol=15, nrow=time) #empty array for the statistics
+  statistic.matrix <- matrix(ncol=17, nrow=time) #empty array for the statistics
     
     
     for(k in 1:patches){ #LOOP OVER PATCHES
@@ -142,6 +152,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
       gender <- c(rep("male",patchx.male),rep("female",patchx.N-patchx.male)) #vector gender: is filled with males and females
       trait <- c(rep(0.5,patchx.N)) #vector trait: is for all individuals from both patches set as 0.5
       female.trait <- c(rep(0.5,patchx.N))
+      male.trait <- rep(0.5,patchx.N)
       survival <- ceiling(runif(patchx.N, min=0, max=age)) #vector survival: randomly distributed between 1 and age limit 
       ID.mother <- c(rep(NA,patchx.N)) #the first generation has no mother and therefore no ID in the column for the mothers ID
       ID.father <- c(rep(NA,patchx.N)) #the first generation has no father and therefore no ID in the column for the fathers ID
@@ -150,14 +161,14 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
       terr <- c(rep(0, patchx.N)) #here the obtained territory is stored, emptied every t
       repro <- c(rep(0, patchx.N)) #decision stored if male can reproduce this t or not (1=True, 0=False)
       patch.born <- patch 
-      loci <- c(1:40) #empty space for loci (nr of loci=40) 20 for male quality trait + 20 for female philopatry trait value
       
-      patchx <- data.frame(ID,patch,gender,trait,female.trait,survival,ID.mother,ID.father, patch.last.year, nr.offspring, terr, repro, patch.born) #the dataframe is constructed for each patch including all vectors which where defined just before
-      loci.matrix.pop <- matrix(ncol=length(loci.col), nrow=patchx.N) 
+      patchx <- data.frame(ID,patch,gender,trait,female.trait,male.trait,survival,ID.mother,ID.father, patch.last.year, nr.offspring, terr, repro, patch.born) #the dataframe is constructed for each patch including all vectors which where defined just before
+      loci.matrix.pop <- matrix(ncol=nloc, nrow=patchx.N) 
       patchx <- cbind(patchx, loci.matrix.pop)
       population.total <- rbind(population.total,patchx)  #data frame including all individuals of all patches (the dataframe of a patch is included in the population matrix)
     }
-    
+    loci.col=c((ncol(population.total) - nloc + 1) :ncol(population.total)) #loci column numbers of the pop matrix 
+
     population.total$ID <- c(1:nrow(population.total)) #the first generation of the population becomes a new ID
     ID.scan <- nrow(population.total)+1
     
@@ -165,6 +176,8 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     population.N <- rep(0,time) #empty vector for the populationsize of each generation (includes also pending males...)
     population.N1 <- rep(0,time) #empty vector for the pop size in patch 1 of each generation
     population.N2 <- rep(0,time) #empty vector for the pop size in patch 2 of each generation
+    population.meantrait1 <- rep(0,time) #empty vector for the mean trait in patch 1 of each generation
+    population.meantrait2 <- rep(0,time) #empty vector for the mean trait in patch 2 of each generation
     population.meantrait1.males <- rep(0,time) #empty vector for the mean trait in patch 1 of each generation
     population.meantrait2.males <- rep(0,time) #empty vector for the mean trait in patch 2 of each generation
     population.meantrait1.females <- rep(0,time) #empty vector for the mean trait in patch 1 of each generation
@@ -183,11 +196,11 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     population <- nrow(population.total) #number of individuals
     
     for(x in 1:population){ #LOOP OVER THE INDIVIDUALS
-      population.total[x,loci.col] <- ceiling(runif(40,1e-16,10)) #each individual has 40 random numbers (first 10:row //last 10:column), the first 20 are for male trait, the last 20 for female trait
+      population.total[x,loci.col] <- ceiling(runif(nloc,1e-16,10)) #each individual has 40 random numbers (first 10:row //last 10:column), the first 20 are for male trait, the last 20 for female trait
     }
     
     loci.matrix <- population.total[,loci.col] #get all loci from current pop matrix 
-    population.total <- trait.fun(population.total,loci.matrix, gen_phen_map, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
+    population.total <- trait.fun(population.total,loci.matrix, gen_phen_map, gen_phen_map2, gen_phen_map3) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     #population.total <- female.trait.fun(population.total,values.population,loci.matrix, gen_phen_map2) #traitvalue-function: traitvalues for the population are included and overwrite the population matrix
     
     ##### GENERATION LOOP START #####  
@@ -346,16 +359,16 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
               ID.scan <- ID.scan + nrow(offs)
               # cat("t = ",t,"\t","ID.scan = ",ID.scan,"\n")
               # flush.console()
-              fat.dum <- expand.grid(loc=c(1:10,21:30), fat = fat.row)
-              mot.dum <- expand.grid(loc=c(1:10,21:30), mot = mot.row)
+              fat.dum <- expand.grid(loc=c(1:10,21:30,41:50), fat = fat.row)
+              mot.dum <- expand.grid(loc=c(1:10,21:30,41:50), mot = mot.row)
               
               fat.dum$loc <- loci.col[fat.dum$loc + sample(c(0,10),nrow(fat.dum),replace=TRUE)]
               mot.dum$loc <- loci.col[mot.dum$loc + sample(c(0,10),nrow(mot.dum),replace=TRUE)]
               
-              off.loc.f <- matrix(as.numeric(N.male[as.matrix(fat.dum[,2:1])]),ncol=20,byrow = TRUE)
-              off.loc.m <- matrix(as.numeric(N.female[as.matrix(mot.dum[,2:1])]),ncol=20,byrow = TRUE)
-              
-              offs[,loci.col] <- cbind(off.loc.m[,1:10],off.loc.f[,1:10],off.loc.m[,11:20],off.loc.f[,11:20])
+              off.loc.f <- matrix(as.numeric(N.male[as.matrix(fat.dum[,2:1])]),ncol=30,byrow = TRUE)
+              off.loc.m <- matrix(as.numeric(N.female[as.matrix(mot.dum[,2:1])]),ncol=30,byrow = TRUE)
+               print(dim(off.loc.f))
+              offs[,loci.col] <- cbind(off.loc.m[,1:10],off.loc.f[,1:10],off.loc.m[,11:20],off.loc.f[,11:20],off.loc.m[,21:30],off.loc.f[,21:30])
 
               # mutate
               mut_loc <- matrix(runif(nrow(offs)*length(loci.col)) < mutate,ncol=length(loci.col))
@@ -364,22 +377,22 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
                 offs[,loci.col][mut_loc] <- sample(1:10,sum(mut_loc),replace=TRUE)
               }
               
-              test_fun <- function(i){
-                gen.own <- offs[i,loci.col]
-                fat.source <- N.male[fat.row[i],loci.col]
-                mot.source <- N.female[mot.row[i],loci.col]
-                gen.source <- cbind(rbind(as.numeric(mot.source[,1:10]),as.numeric(mot.source[,11:20])),
-                rbind(as.numeric(fat.source[,1:10]),as.numeric(fat.source[,11:20])),
-                rbind(as.numeric(mot.source[,21:30]),as.numeric(mot.source[,31:40])),
-                rbind(as.numeric(fat.source[,21:30]),as.numeric(fat.source[,31:40])))
-                all(gen.own == gen.source[1,] | gen.own == gen.source[2,])
-              }
+              # test_fun <- function(i){
+              #   gen.own <- offs[i,loci.col]
+              #   fat.source <- N.male[fat.row[i],loci.col]
+              #   mot.source <- N.female[mot.row[i],loci.col]
+              #   gen.source <- cbind(rbind(as.numeric(mot.source[,1:10]),as.numeric(mot.source[,11:20])),
+              #   rbind(as.numeric(fat.source[,1:10]),as.numeric(fat.source[,11:20])),
+              #   rbind(as.numeric(mot.source[,21:30]),as.numeric(mot.source[,31:40])),
+              #   rbind(as.numeric(fat.source[,21:30]),as.numeric(fat.source[,31:40])))
+              #   all(gen.own == gen.source[1,] | gen.own == gen.source[2,])
+              # }
               # test_fun(13)
               # loci.col
               population.offspring <- rbind(population.offspring,offs)
             }
           }
-          population.offspring <- trait.fun(population.offspring, population.offspring[,loci.col], gen_phen_map, gen_phen_map2) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
+          population.offspring <- trait.fun(population.offspring, population.offspring[,loci.col], gen_phen_map, gen_phen_map2, gen_phen_map3) #the offspring matrix is overwritten including the traitvalues calculated by the traitvalue-function
                 
           #INFATICIDE: Let offspring die with mortality depending on patch density
           densities <- N.female.patch + N.male.patch
@@ -413,8 +426,10 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         population.N[t] <- nrow(population.total) #overwrites the populationsizes for each generation in the empty vector
         population.N1[t] <- nrow(population.total[population.total$patch==1&population.total$repro==1,]) #get population size from patch 1 for all individuals that reproduced
         population.N2[t] <- nrow(population.total[population.total$patch==2&population.total$repro==1,]) #get population size from patch 2  for all ind. that reproduced 
-        population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$trait)  #average trait-value from males for patch 1  for first generation
-        population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$trait) #average trait-value from males for patch 2  for first generation
+        population.meantrait1[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$trait)  #average trait-value from males for patch 1  for first generation
+        population.meantrait2[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$trait) #average trait-value from males for patch 2  for first generation
+        population.meantrait1.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$male.trait)  #average trait-value from males for patch 1  for first generation
+        population.meantrait2.males[t] <- mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$male.trait) #average trait-value from males for patch 2  for first generation
         population.meantrait1.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==1&population.total$repro==1,]$female.trait)  #average trait-value from females for patch 1  for first generation
         population.meantrait2.females[t] <- mean(population.total[population.total$gender=="female"&population.total$patch==2&population.total$repro==1,]$female.trait) #average trait-value from females for patch 2  for first generation
         population.males1[t] <- nrow(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]) #Number of males in patch 1  for first generation
@@ -425,8 +440,11 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
         offspring.produced2[t] <- nrow(population.total[population.total$survival==(age-1)&population.total$patch==2,])#number of new offspring in patch 2
         cov.males1[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$trait)) #covariance of number of offspring and male quality in patch 1
         cov.males2[t] <- cov((population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$nr.offspring),(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$trait)) #covariance of number of offspring and male quality in patch 2
+        print(dim(statistic.matrix))
         
-        statistic.matrix[t,] <- cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1.males[t], population.meantrait2.males[t],population.meantrait1.females[t], population.meantrait2.females[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t], offspring.produced1[t], offspring.produced2[t],  cov.males1[t],  cov.males2[t])
+        print(dim(cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1[t], population.meantrait2[t], population.meantrait1.males[t], population.meantrait2.males[t],population.meantrait1.females[t], population.meantrait2.females[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t], offspring.produced1[t], offspring.produced2[t],  cov.males1[t],  cov.males2[t])
+        ))
+        statistic.matrix[t,] <- cbind(population.N[t],population.N1[t],population.N2[t],population.meantrait1[t], population.meantrait2[t], population.meantrait1.males[t], population.meantrait2.males[t],population.meantrait1.females[t], population.meantrait2.females[t], population.males1[t], population.males2[t], population.females1[t], population.females2[t], offspring.produced1[t], offspring.produced2[t],  cov.males1[t],  cov.males2[t])
         
         ##### End Statistic 2#############
         
@@ -436,7 +454,7 @@ mortality <- function(N, surv){ #Calculate density-dependent mortality rate. Dep
     
     #Stored summary statistic formatted for output data
     statistic.matrix[is.na(statistic.matrix)] <- 0 #NaN can be produced when trait values are not existing (remove these and call them 0)
-    colnames(statistic.matrix) <- c("N","N1","N2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
+    colnames(statistic.matrix) <- c("N","N1","N2","meantrait1","meantrait2","meantrait.males1","meantrait.males2","meantrait.females1","meantrait.females2","N.males1","N.males2", "N.females1", "N.females2", "offspring.produced1", "offspring.produced2", "cov.males1", "cov.males2") #column names of statistic store matrix
     return(statistic.matrix)
 }#END SIMULATION.RUN
 
