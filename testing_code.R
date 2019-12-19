@@ -11,7 +11,7 @@ source("IBM_fur_seals_Lara_cluster.R")
 
 
 
-newdat <- simulation.fun(time = 1e3, #t  
+newdat <- simulation.fun(time = 1e4, #t  
                age = 15, 
                patches = 2, #number of Patches (two different sites: high/low density)
                territories = c(20,20), #number of territories per patch
@@ -23,7 +23,7 @@ newdat <- simulation.fun(time = 1e3, #t
                i = -1.4, #intercept for infanticide function
                s = 2.8,
                surv=0.9,
-               gene_file1="genes_het_ad.rds",
+               gene_file1="genes.rds",
                gene_file2="genes2.rds",
                gene_file3="genes2.rds"
 )
