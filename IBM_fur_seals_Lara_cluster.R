@@ -108,24 +108,27 @@ choice.fun.females <- function(N.female,p,u,N.last1,N.last2, patches){ #FEMALE P
 
 competition.fun <- function(N.male, patches, population.males, territories){ #LET MALES COMPETE FOR TERRITORIES, DEPENDING ON THEIR QUALITY TRAIT
   
-  ### 1.) Males choose their territory in this patch
-  for(p in 1:patches){ #Going through previous determined patches of males (at first Patch I than Patch II)
-    if(nrow(N.male[N.male$patch==p&N.male$terr==0,])>0){ #Are their any males in the patch (with no territory yet)
-      ID.terr.males <- matrix(NA, nrow=nrow(N.male[N.male$patch==p&N.male$terr==0,]), ncol=2) #new matrix for storing IDs
-      ID.terr.males[,1] <- N.male[N.male$patch==p & N.male$terr==0,]$ID #get IDs of males that have no territory yet
-      ID.terr.males[,2] <- sample(territories[p],nrow(ID.terr.males), replace=TRUE)
-      N.male$terr[match(ID.terr.males[,1],N.male$ID)] <- ID.terr.males[,2] #write the territory number in matrix of males in this patch 
-    }
-  }#End 1.) patch loop
+  # Assign random territories to males without territory
+  inds <- N.male$terr==0
+  if(any(inds)){
+    N.male$terr[inds] <- ceiling(runif(sum(inds),1e-6,territories[N.male$patch[inds]]))
+
+  
+    # Max per territory
+    max_per_terr <- aggregate(N.male$trait,by=list(patch = N.male$patch,terr = N.male$terr),max)
+    max_per_terr$dum <- paste(max_per_terr$patch,max_per_terr$terr,sep="-")
+    dum <- paste(N.male$patch,N.male$terr,sep="-")
+    matched_max <- max_per_terr$x[match(dum,max_per_terr$dum)]
+    N.male$terr[N.male$trait < matched_max] <- 0 
+    N.male$terr[N.male$terr!=0 & duplicated(dum)] <- 0 # what if there are multiple males with the same, maximum, trait value
+  }  
+  # Determine whether some will not fight
+  
+  # Let the rest fight
   
   ### 2) Males compete for their territory - the one with highest quality trait obtains it
 
-  max_per_terr <- aggregate(N.male$trait,by=list(patch = N.male$patch,terr = N.male$terr),max)
-  max_per_terr$dum <- paste(max_per_terr$patch,max_per_terr$terr,sep="-")
-  dum <- paste(N.male$patch,N.male$terr,sep="-")
-  matched_max <- max_per_terr$x[match(dum,max_per_terr$dum)]
-  N.male$terr[N.male$trait < matched_max] <- 0 
-  N.male$terr[N.male$terr!=0 & duplicated(N.male$terr)] <- 0 # what if there are multiple males with the same, maximum, trait value
+
   
   return(N.male)
   
@@ -148,11 +151,23 @@ statistics <- function(population,Nt,init = FALSE){
                N1 = empty,
                N2 = empty,
                meantrait1 = empty,
+               meantrait1.lcl = empty,
+               meantrait1.ucl = empty,
                meantrait2 = empty,
+               meantrait2.lcl = empty,
+               meantrait2.ucl = empty,
                meantrait.males1 = empty,
+               meantrait.males1.lcl = empty,
+               meantrait.males1.ucl = empty,
                meantrait.males2 = empty,
+               meantrait.males2.lcl = empty,
+               meantrait.males2.ucl = empty,
                meantrait.females1 = empty,
+               meantrait.females1.lcl = empty,
+               meantrait.females1.ucl = empty,
                meantrait.females2 = empty,
+               meantrait.females2.lcl = empty,
+               meantrait.females2.ucl = empty,
                N.males1 = empty,
                N.males2 = empty,
                N.females1 = empty, 
@@ -166,11 +181,23 @@ statistics <- function(population,Nt,init = FALSE){
                N1 = nrow(population.total[population.total$patch==1&population.total$repro==1,]),
                N2 = nrow(population.total[population.total$patch==2&population.total$repro==1,]),
                meantrait1 = mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$trait),
+               meantrait1.lcl = quantile(population.total[population.total$gender=="male" & population.total$patch==1 & population.total$repro ==1,]$trait,probs = 0.025)[[1]],
+               meantrait1.ucl = quantile(population.total[population.total$gender=="male" & population.total$patch==1 & population.total$repro ==1,]$trait,probs = 0.975)[[1]],
                meantrait2 = mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$trait),
+               meantrait2.lcl = quantile(population.total[population.total$gender=="male" & population.total$patch==2 & population.total$repro ==1,]$trait,probs = 0.025)[[1]],
+               meantrait2.ucl = quantile(population.total[population.total$gender=="male" & population.total$patch==2 & population.total$repro ==1,]$trait,probs = 0.975)[[1]],
                meantrait.males1 = mean(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]$male.trait),
+               meantrait.males1.lcl = quantile(population.total[population.total$gender=="male" & population.total$patch==1 & population.total$repro ==1,]$male.trait,probs = 0.025)[[1]],
+               meantrait.males1.ucl = quantile(population.total[population.total$gender=="male" & population.total$patch==1 & population.total$repro ==1,]$male.trait,probs = 0.975)[[1]],
                meantrait.males2 = mean(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]$male.trait),
+               meantrait.males2.lcl = quantile(population.total[population.total$gender=="male" & population.total$patch==2 & population.total$repro ==1,]$male.trait,probs = 0.025)[[1]],
+               meantrait.males2.ucl = quantile(population.total[population.total$gender=="male" & population.total$patch==2 & population.total$repro ==1,]$male.trait,probs = 0.975)[[1]],
                meantrait.females1 = mean(population.total[population.total$gender=="female"&population.total$patch==1&population.total$repro==1,]$female.trait),
+               meantrait.females1.lcl = quantile(population.total[population.total$gender=="female" & population.total$patch==1 & population.total$repro ==1,]$female.trait,probs = 0.025)[[1]],
+               meantrait.females1.ucl = quantile(population.total[population.total$gender=="female" & population.total$patch==1 & population.total$repro ==1,]$female.trait,probs = 0.975)[[1]],
                meantrait.females2 = mean(population.total[population.total$gender=="female"&population.total$patch==2&population.total$repro==1,]$female.trait),
+               meantrait.females2.lcl = quantile(population.total[population.total$gender=="female" & population.total$patch==2 & population.total$repro ==1,]$female.trait,probs = 0.025)[[1]],
+               meantrait.females2.ucl = quantile(population.total[population.total$gender=="female" & population.total$patch==2 & population.total$repro ==1,]$female.trait,probs = 0.975)[[1]],
                N.males1 = nrow(population.total[population.total$gender=="male"&population.total$patch==1&population.total$repro==1,]),
                N.males2 = nrow(population.total[population.total$gender=="male"&population.total$patch==2&population.total$repro==1,]),
                N.females1 = nrow(population.total[population.total$gender=="female"&population.total$patch==1,]), 
