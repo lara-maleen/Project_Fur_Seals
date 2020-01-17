@@ -11,7 +11,7 @@ source("IBM_fur_seals_Lara_cluster.R")
 
 
 
-newdat <- simulation.fun(time = 1e4, #t  
+newdat <- simulation.fun(time = 1e2, #t  
                age = 15, 
                patches = 2, #number of Patches (two different sites: high/low density)
                territories = c(20,20), #number of territories per patch
