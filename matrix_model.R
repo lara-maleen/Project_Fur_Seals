@@ -8,8 +8,10 @@ dum <- dum[!(dum[,1] == 'A' & dum[,2] == 'a') & !(dum[,4] =='B' & dum[,5] == 'b'
 colnames(dum) <- c('a1','a2','dash1','b1','b2','dash2','sex')
 catnames <- as.character(apply(dum,1, FUN = function(x) paste(x,sep="",collapse="")))
 dum2 <- dum
-min_val <- 0.3
-dum2$p1 <- min_val + 0.5*(1-2*min_val)*(as.numeric(dum2$sex=='m')*(as.numeric(dum2$a1=='A') + as.numeric(dum2$a2=='A')) + as.numeric(dum2$sex=='f')*(as.numeric(dum2$b1=='B') + as.numeric(dum2$b2=='B'))) # probability of going to island 1 for each indiv
+min_val_m <- 0.1
+min_val_f <- 0.01
+dum2$p1 <- min_val_m*as.numeric(dum2$sex=='m') + min_val_f*as.numeric(dum2$sex == 'f') + 
+  0.5*(1-2*min_val_m)*(as.numeric(dum2$sex=='m')*(as.numeric(dum2$a1=='A') + as.numeric(dum2$a2=='A'))) + 0.5*(1-2*min_val_f)*(as.numeric(dum2$sex=='f')*(as.numeric(dum2$b1=='B') + as.numeric(dum2$b2=='B'))) # probability of going to island 1 for each indiv
 dum2$Ascore <- as.numeric(dum2$a1 == 'A') + as.numeric(dum2$a2 == 'A')
 dum2$Bscore <- as.numeric(dum2$b1 == 'B') + as.numeric(dum2$b2 == 'B')
 
@@ -53,6 +55,7 @@ calc_off_dist <- function(fem,dum,male.dist){
     offs[loc] <- offs[loc] + df.offs$pmat[i]*df.offs$pfat[i]/2
     
   }
+  # cat(sum(offs),"\n")
   offs
 }
 
@@ -76,15 +79,19 @@ make_mat <- function(popvect,dum){
   #A[length(popvect),length(popvect)] <- 0.99
   #A[1,length(popvect)] <- 2
   diag(A) <- surv
+  N.f.1 <- sum((dum$p1*popvect)[dum$sex == 'f'])
+  N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
+  surv.1 <- 0.9+0.1*plogis(100*(0.25-N.f.1))
+  surv.2 <- 0.9+0.1*plogis(100*(0.25-N.f.2))
+  
   for(i in which(dum$sex == 'f')){
     offs.dist.1 <- calc_off_dist(dum[i,],dum,male.dist.1)
     offs.dist.2 <- calc_off_dist(dum[i,],dum,male.dist.2)
-    A[,i] <- A[,i] + dum$p1[i]*offs.dist.1 + (1-dum$p1[i])*offs.dist.2
-    # print(offs.dist.2)
-  }
 
-  # print(A)
-  # stop("err")
+    A[,i] <- A[,i] + dum$p1[i]*offs.dist.1*surv.1 + (1-dum$p1[i])*offs.dist.2*surv.2
+
+  }
+  cat(surv.1,"\t",surv.2,"\n")
   return(A)
 }
 
