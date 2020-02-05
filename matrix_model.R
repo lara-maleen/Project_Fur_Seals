@@ -8,8 +8,8 @@ dum <- dum[!(dum[,1] == 'A' & dum[,2] == 'a') & !(dum[,4] =='B' & dum[,5] == 'b'
 colnames(dum) <- c('a1','a2','dash1','b1','b2','dash2','sex')
 catnames <- as.character(apply(dum,1, FUN = function(x) paste(x,sep="",collapse="")))
 dum2 <- dum
-min_val_m <- 0.1
-min_val_f <- 0.01
+min_val_m <- 0.3
+min_val_f <- 0.1
 dum2$p1 <- min_val_m*as.numeric(dum2$sex=='m') + min_val_f*as.numeric(dum2$sex == 'f') + 
   0.5*(1-2*min_val_m)*(as.numeric(dum2$sex=='m')*(as.numeric(dum2$a1=='A') + as.numeric(dum2$a2=='A'))) + 0.5*(1-2*min_val_f)*(as.numeric(dum2$sex=='f')*(as.numeric(dum2$b1=='B') + as.numeric(dum2$b2=='B'))) # probability of going to island 1 for each indiv
 dum2$Ascore <- as.numeric(dum2$a1 == 'A') + as.numeric(dum2$a2 == 'A')
@@ -187,3 +187,70 @@ df.Bb.f <- data.frame(t = rep(1:length(N.bb.1), 6), N = c(N.bb.1.f,N.Bb.1.f,N.BB
 p6 <- ggplot(df.Bb.f, aes(x=t, y=N, lty = patch, col = alleles)) + geom_line() + theme_bw() + ylim(c(0,1))
 library(gridExtra)
 grid.arrange(p0,p1,p2,p3,p4,p5,p6,nrow=3)
+
+dum2
+dat <- normalized
+### Statistics function
+
+dist <- function(x,y){
+  sqrt(sum((x-y)^2))
+}
+
+statistics <- function(dat,dum){
+  # stability (using perturbations?!)
+  delta <- 0.01 #fractional perturbation
+  base_vec <- as.numeric(dat[nrow(dat),])
+  Tp <- 10
+  up_pert <- logical(length(base_vec))
+  down_pert <- logical(length(base_vec))
+  pert_ind <- 0
+  max_dist <- 0
+  for(i in 1:length(base_vec)){
+    pert_up <- base_vec
+    pert_down <- base_vec
+    pert_up[i] <- (1+delta)*pert_up[i]
+    pert_down[i] <- (1-delta)*pert_down[i]
+    dist_prior_up <- dist(pert_up,base_vec)
+    dist_prior_down <- dist(pert_down,base_vec)
+    
+    for(t in 1:Tp){
+      A_up <- make_mat(pert_up,dum)
+      A_down <- make_mat(pert_down,dum)
+      
+      pert_up <- A_up %*% pert_up
+      pert_up <- pert_up/sum(pert_up)
+      pert_down <- A_down %*% pert_down
+      pert_down <- pert_down/sum(pert_down)
+    #   if(i == 8){
+    #     pert_up <- 0.0*pert_up + 1.0*rep(1/length(base_vec),length(base_vec))
+    #   }
+    #   
+    #   if(i == 9){
+    #     pert_down <- 0.9*pert_down + 0.1*rep(1/length(base_vec),length(base_vec))
+    #   }
+    # }
+    dist_post_up <- dist(pert_up,base_vec)
+    dist_post_down <- dist(pert_down,base_vec)
+    
+    up_pert <- dist_post_up - dist_prior_up
+    down_pert <- dist_post_down - dist_prior_down
+    
+    if((up_pert < 0 | down_pert < 0) & max(abs(c(up_pert,down_pert))) > max_dist){
+      pert_ind <- i*(-1+2*as.numeric(abs(up_pert) > abs(down_pert)))
+      max_dist <- abs(max(c(up_pert,down_pert)))
+      
+    }
+  }
+   return(pert_ind)
+  
+  # differences in abundances between the islands
+  
+  # differences in allele frequencies
+}
+statistics(normalized,dum2)
+
+plotting <- function(){
+  return(NA)
+}
+
+plotting()
