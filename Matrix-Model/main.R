@@ -1,15 +1,21 @@
 rm(list=ls())
+
 # Requires:
 # readr
 # ggplot2
 # gridExtra
+library(foreach)
+library(doMC)
+cores <- detectCores()
+registerDoMC(cores)
 
 # Code dir
-cdir <- "/home/koen/Documents/projects/Project_Fur_Seals/Matrix-Model/"
+cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model.R","stat.R","logs.R")
 # Out dir
-odir <- "/home/koen/Documents/projects/Project_Fur_Seals/Matrix-Model/out1/"
+odir <- "/data/home/koen/Fur_Seals/out1/"
 odir.raw <- paste(odir,"raw",sep="")
+
 setwd(cdir)
 sapply(sources,source)
 
@@ -17,12 +23,13 @@ if(!dir.exists(odir)){
   dir.create(odir)
   dir.create(odir.raw)
 }else{
-  # stop("Refusing to overwrite existing directory")
+  stop("Refusing to overwrite existing directory")
 }
 
 
 # parameter values
-sims <- expand.grid(a=1:3,b=2)
+sims <- expand.grid(surv=c(0,0.5,0.8,0.9),A.adv=c(1,1.5,2,10),dens_reg=c(0,0.5,1),rep=1:10)
+sims$seed <- 1:nrow(sims)
 sims$outfile <- paste("out",formatC(1:nrow(sims),width=3,flag="0"),sep="")
 setwd(odir)
 write.csv(sims,"simruns.csv")
@@ -37,9 +44,10 @@ colnames(out.stat) <- c(colnames(tmp),'outfile')
 out.stat$outfile <- sims$outfile
 
 setwd(odir.raw)
-for(i in 1:nrow(sims)){
-  run_sim(sims$outfile[i],Nt=10)
-  out.stat[i,-ncol(out.stat)] <- statistics(sims$outfile[i],surv = 0,A.adv=1.5)
+foreach(i = 1:nrow(sims)) %dopar% {
+  set.seed(sims$seed[i])
+  run_sim(sims$outfile[i],surv=sims$surv[i],A.adv=sims$A.adv[i],dens_reg = sims$dens_reg[i],Nt=1e4)
+  out.stat[i,-ncol(out.stat)] <- statistics(sims$outfile[i],surv = sims$surv[i],A.adv=sims$A.adv[i],dens_reg=sims$dens_reg[i],Tp=10)
 }
 setwd(odir)
 write.csv(out.stat,"summary.stat")

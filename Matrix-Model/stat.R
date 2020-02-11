@@ -3,9 +3,13 @@ dist <- function(x,y){
   sqrt(sum((x-y)^2))
 }
 
-statistics <- function(filename,surv,A.adv,empty=FALSE){
+statistics <- function(filename,surv,A.adv,dens_reg,Tp=10,empty=FALSE){
   if(empty){
-    return(data.frame(stability=NA,N1=NA,N2=NA))
+    return(data.frame(stability=NA,N1=NA,N2=NA,N.1.m=NA,N.2.m=NA,N.1.f=NA,N.2.f=NA,
+                      N.1.AA.m = NA, N.1.Aa.m = NA, N.1.aa.m = NA,
+                      N.2.AA.m = NA, N.2.Aa.m = NA, N.2.aa.m = NA,
+                      N.1.BB.f = NA, N.1.Bb.f = NA, N.1.bb.f = NA,
+                      N.2.BB.f = NA, N.2.Bb.f = NA, N.2.bb.f = NA))
   }
   # stability (using perturbations?!)
   dum <- read.csv(paste(filename,".dum",sep=""),stringsAsFactors = FALSE)
@@ -13,7 +17,7 @@ statistics <- function(filename,surv,A.adv,empty=FALSE){
   
   delta <- 0.01 #fractional perturbation
   base_vec <- as.numeric(dat[nrow(dat),])
-  Tp <- 10
+
   up_pert <- logical(length(base_vec))
   down_pert <- logical(length(base_vec))
   pert_ind <- 0
@@ -35,12 +39,12 @@ statistics <- function(filename,surv,A.adv,empty=FALSE){
     dist_prior_down <- dist(pert_down,base_vec)
     
     for(t in 1:Tp){
-      A_up <- make_mat(surv,pert_up,dum,A.adv)
+      A_up <- make_mat(surv,pert_up,dum,A.adv,dens_reg=dens_reg)
       pert_up <- A_up %*% pert_up
       pert_up <- pert_up/sum(pert_up)
       
       if(!atzero){
-        A_down <- make_mat(surv,pert_down,dum,A.adv)
+        A_down <- make_mat(surv,pert_down,dum,A.adv,dens_reg=dens_reg)
         pert_down <- A_down %*% pert_down
         pert_down <- pert_down/sum(pert_down)
       }
@@ -88,13 +92,41 @@ statistics <- function(filename,surv,A.adv,empty=FALSE){
   sumdat$N.1 <- sumdat$p1*base_vec
   sumdat$N.2 <- (1-sumdat$p1)*base_vec
   
+  N1 <- sum(sumdat$N.1)
+  N2 <- sum(sumdat$N.2)
+  
+  N.1.m <- sum(sumdat$N.1[sumdat$sex=='m'])
+  N.2.m <- sum(sumdat$N.2[sumdat$sex=='m'])
+  N.1.f <- sum(sumdat$N.1[sumdat$sex=='f'])
+  N.2.f <- sum(sumdat$N.2[sumdat$sex=='f'])
+  
+  N.1.AA.m <- sum(sumdat$N.1[sumdat$sex=='m' & sumdat$Ascore == 2])
+  N.1.Aa.m <- sum(sumdat$N.1[sumdat$sex=='m' & sumdat$Ascore == 1])
+  N.1.aa.m <- sum(sumdat$N.1[sumdat$sex=='m' & sumdat$Ascore == 0])
+    
+  N.2.AA.m <- sum(sumdat$N.2[sumdat$sex=='m' & sumdat$Ascore == 2])
+  N.2.Aa.m <- sum(sumdat$N.2[sumdat$sex=='m' & sumdat$Ascore == 1])
+  N.2.aa.m <- sum(sumdat$N.2[sumdat$sex=='m' & sumdat$Ascore == 0])
+  
+  N.1.BB.f <- sum(sumdat$N.1[sumdat$sex=='f' & sumdat$Bscore == 2])
+  N.1.Bb.f <- sum(sumdat$N.1[sumdat$sex=='f' & sumdat$Bscore == 1])
+  N.1.bb.f <- sum(sumdat$N.1[sumdat$sex=='f' & sumdat$Bscore == 0])
+  
+  N.2.BB.f <- sum(sumdat$N.2[sumdat$sex=='f' & sumdat$Bscore == 2])
+  N.2.Bb.f <- sum(sumdat$N.2[sumdat$sex=='f' & sumdat$Bscore == 1])
+  N.2.bb.f <- sum(sumdat$N.2[sumdat$sex=='f' & sumdat$Bscore == 0])
+  
   # summarize these numbers in relevant statistics
   
   # differences in allele frequencies
   
   # write time state file, if requested
-  write.csv(sumdat,filename = paste(filename,".stat",sep=""))
+  # write.csv(sumdat,file = paste(filename,".stat",sep=""))
   
   # return last data point stats
-  return(data.frame(stability = pert_ind, N1 = sumdat$N.1[nrow(sumdat)], N2 = sumdat$N.2[nrow(sumdat)]))
+  return(data.frame(stability = pert_ind, N1 = N1, N2 = N2, N.1.m = N.1.m, N.2.m = N.2.m, N.1.f = N.1.f, N.2.f = N.2.f,
+                    N.1.AA.m = N.1.AA.m, N.1.Aa.m = N.1.Aa.m, N.1.aa.m = N.1.aa.m,
+                    N.2.AA.m = N.2.AA.m, N.2.Aa.m = N.2.Aa.m, N.2.aa.m = N.2.aa.m,
+                    N.1.BB.f = N.1.BB.f, N.1.Bb.f = N.1.Bb.f, N.1.bb.f = N.1.bb.f,
+                    N.2.BB.f = N.2.BB.f, N.2.Bb.f = N.2.Bb.f, N.2.bb.f = N.2.bb.f))
 }

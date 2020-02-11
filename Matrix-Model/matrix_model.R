@@ -29,7 +29,7 @@ calc_off_dist <- function(fem,dum,male.dist,A.adv){
   offs
 }
 
-make_mat <- function(surv,popvect,dum,A.adv){
+make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
   
   # male dist isle 1
   male.dist.1 <- dum$p1*popvect*as.numeric(dum$sex=='m')
@@ -46,12 +46,12 @@ make_mat <- function(surv,popvect,dum,A.adv){
   diag(A) <- surv
   N.f.1 <- sum((dum$p1*popvect)[dum$sex == 'f'])
   N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
-  surv.1 <- 0.9+0.1*plogis(100*(0.25-N.f.1))
-  surv.2 <- 0.9+0.1*plogis(100*(0.25-N.f.2))
+  surv.1 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
+  surv.2 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
   
   for(i in which(dum$sex == 'f')){
     offs.dist.1 <- calc_off_dist(dum[i,],dum,male.dist.1,A.adv)
-    offs.dist.2 <- calc_off_dist(dum[i,],dum,male.dist.2,A.adv)
+    offs.dist.2 <- calc_off_dist(dum[i,],dum,male.dist.2,1) # male advantage of having genotype AA only counts on island 1
     
     A[,i] <- A[,i] + dum$p1[i]*offs.dist.1*surv.1 + (1-dum$p1[i])*offs.dist.2*surv.2
     
@@ -62,7 +62,7 @@ make_mat <- function(surv,popvect,dum,A.adv){
 
 
 ## Matrix-like model for the Fur Seals
-run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0){
+run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,dens_reg=0,N0){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -81,7 +81,7 @@ run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0
   store <- matrix(NA,nrow=length(N0),ncol=Nt)
   store[,1] <- N0 / sum(N0)
   for(t in 2:Nt){
-    A <- make_mat(surv,store[,t-1],dum2,A.adv)
+    A <- make_mat(surv,store[,t-1],dum2,A.adv,dens_reg)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t])
   }
