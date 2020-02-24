@@ -1,5 +1,38 @@
-calc_off_dist <- function(fem,dum,male.dist,A.adv){
+calc_off_dist_alt <- function(fem,dum,male.dist,A.adv){
   
+  male.dist[dum$Ascore == 2] <- A.adv*male.dist[dum$Ascore == 2]
+  male.dist <- male.dist/sum(male.dist)
+  
+  mAB <- sum(male.dist*0.5*dum$Ascore*0.5*dum$Bscore) # prob. of inheriting AB from father
+  mAb <- sum(male.dist*0.5*dum$Ascore*(1-0.5*dum$Bscore)) # prob. of inheriting Ab from father
+  maB <- sum(male.dist*(1-0.5*dum$Ascore)*0.5*dum$Bscore) # prob. of inheriting aB from father
+  mab <- sum(male.dist*(1-0.5*dum$Ascore)*(1-0.5*dum$Bscore)) # prob. of inheriting ab from father
+
+  as.f <- 0.5*(as.numeric(fem$a1 == 'A') + as.numeric(fem$a2 == 'A')) # prob. of inheriting A from mother
+  bs.f <- 0.5*(as.numeric(fem$b1 == 'B') + as.numeric(fem$b2 == 'B')) # prob. of inheriting B from mother
+  
+
+  # creating a 3x3 matrix with all potential combinations of scores
+  # Ascore 0,1,2 and Bscore 0,1,2
+  offs.score <- matrix(NA,nrow=3,ncol=3)
+  offs.score[1,1] <- mab*(1-as.f)*(1-bs.f) # aabb
+  offs.score[1,2] <- mAb*(1-as.f)*(1-bs.f) + mab*as.f*(1-bs.f) # Aabb
+  offs.score[1,3] <- mAb*(1-bs.f)*as.f# AAbb
+  offs.score[2,1] <- maB*(1-as.f)*(1-bs.f) + mab*(1-as.f)*bs.f # aabB
+  offs.score[2,2] <- mAB*(1-as.f)*(1-bs.f) + mAb*(1-as.f)*bs.f + maB*as.f*(1-bs.f) + mab*as.f*bs.f # aAbB
+  offs.score[2,3] <- mAB*as.f*(1-bs.f) + mAb*as.f*bs.f# AAbB
+  offs.score[3,1] <- maB*(1-as.f)*bs.f # aaBB
+  offs.score[3,2] <- mAB*(1-as.f)*bs.f + maB*as.f*bs.f# aABB
+  offs.score[3,3] <- mAB*as.f*bs.f # AABB 
+
+  offs <- offs.score[cbind(dum$Bscore + 1,dum$Ascore + 1)] 
+  
+  offs/2
+}
+
+
+calc_off_dist <- function(fem,dum,male.dist,A.adv){
+  # print(fem)
   male.dist[dum$Ascore == 2] <- A.adv*male.dist[dum$Ascore == 2]
   male.dist <- male.dist/sum(male.dist)
   
@@ -50,8 +83,15 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
   surv.2 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
   
   for(i in which(dum$sex == 'f')){
-    offs.dist.1 <- calc_off_dist(dum[i,],dum,male.dist.1,A.adv)
-    offs.dist.2 <- calc_off_dist(dum[i,],dum,male.dist.2,1) # male advantage of having genotype AA only counts on island 1
+    offs.dist.1 <- calc_off_dist_alt(dum[i,],dum,male.dist.1,A.adv)
+    offs.dist.2 <- calc_off_dist_alt(dum[i,],dum,male.dist.2,1) # male advantage of having genotype AA only counts on island 1
+    
+    #offs.dist.1.fake <- calc_off_dist(dum[i,],dum,male.dist.1,A.adv)
+    #offs.dist.2.fake <- calc_off_dist(dum[i,],dum,male.dist.2,1) # male advantage of having genotype AA only counts on island 1
+    
+    #cat(all.equal(offs.dist.1.fake,offs.dist.1),"\t",
+    #all.equal(offs.dist.2.fake,offs.dist.2),"\n")
+
     
     A[,i] <- A[,i] + dum$p1[i]*offs.dist.1*surv.1 + (1-dum$p1[i])*offs.dist.2*surv.2
     
