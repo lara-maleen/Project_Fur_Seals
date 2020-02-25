@@ -5,7 +5,7 @@ source("graphing.R")
 undebug(calc_off_dist_alt)
 library(profvis)
 getwd()
-profvis({
+ profvis({
 run_sim(filename = "test",Nt=1e4)
-})
-#plotting_rep(filename = "test","graph title")
+ })
+plotting_rep(filename = "test","graph title")
