@@ -13,7 +13,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model.R","stat.R","logs.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out2/"
+odir <- "/data/home/koen/Fur_Seals/out3/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)

@@ -1,4 +1,4 @@
-setwd("~/Documents/projects/Project_Fur_Seals/Matrix-Model/")
+setwd("~/Documents/projects/Project_Fur_Seals/Matrix-Model/out3")
 
 
 dat <- read.csv("summary.stat")
@@ -27,7 +27,9 @@ print(p2)
 library(tidyr)
 dat_all <- cbind(ref[,-1],dat[,-1])
 plot_all <- gather(dat_all,condition, val, N.1.m:N.2.f)
-p3 <- ggplot(plot_all,aes(x=surv,y=val,group=paste(condition,surv),col=condition)) + geom_boxplot() + facet_grid(dens_reg ~ A.adv,labeller=label_both) +theme_bw() +ggtitle("Number of individuals")
+plot_all$sex <- c('f','m')[1 + as.numeric(plot_all$condition %in% c("N.1.m","N.2.m"))] 
+plot_all$loc <- factor(1 + as.numeric(plot_all$condition %in% c("N.2.f","N.2.m")))
+p3 <- ggplot(plot_all,aes(x=surv,y=val,group=paste(condition,surv),col=sex,lty=loc)) + geom_boxplot() + facet_grid(dens_reg ~ A.adv,labeller=label_both) +theme_bw() +ggtitle("Number of individuals")
 print(p3)
 
 plot_allAA <- gather(dat_all,condition, val, N.1.AA.m:N.2.aa.m)
@@ -37,4 +39,16 @@ print(p4)
 plot_allBB <- gather(dat_all,condition, val, N.1.BB.f:N.2.bb.f)
 p5 <- ggplot(plot_allBB,aes(x=surv,y=val,group=paste(condition,surv),col=condition)) + geom_boxplot() + facet_grid(dens_reg ~ A.adv,labeller=label_both) +theme_bw() + ggtitle("Female numbers BB")
 print(p5)
+
+# pick some condition
+aadv <- 1.5
+surv <- 0.8
+dat_all2 <- dat_all[dat_all$A.adv == aadv & dat_all$surv == surv,]
+
+plot_all2 <- gather(dat_all2,condition, val, N.1.m:N.2.f)
+plot_all2$sex <- c('f','m')[1 + as.numeric(plot_all2$condition %in% c("N.1.m","N.2.m"))] 
+plot_all2$loc <- factor(1 + as.numeric(plot_all2$condition %in% c("N.2.f","N.2.m")))
+p6 <- ggplot(plot_all2,aes(x=factor(dens_reg),y=val,group=paste(condition,dens_reg),col=sex,lty=loc)) + geom_boxplot() + facet_grid(min_val_m ~ min_val_f,labeller=label_both) +theme_bw() +ggtitle(paste("Number of individuals - surv = ",surv,", A.adv = ",aadv,sep=""))
+print(p6)
+
 dev.off()

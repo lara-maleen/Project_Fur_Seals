@@ -113,10 +113,12 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
 
 
 ## Matrix-like model for the Fur Seals
-run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,dens_reg=0,N0){
+run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,dens_reg=0,N0,Tstep=100){
   if(missing(N0)){
     N0 <- runif(18)
   }
+  
+  savepoints <- seq(1,Nt,Tstep)
   
   dum <- expand.grid(a1 = c('a','A'),a2 = c('a','A'),b1 = c('b','B'),b2 = c('b','B'),sex = c('m','f'),stringsAsFactors = FALSE)
   dum <- dum[!(dum$a1 == 'A' & dum$a2 == 'a') & !(dum$b1 =='B' & dum$b2 == 'b'),]
@@ -137,5 +139,5 @@ run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0
     store[,t] <- store[,t]/sum(store[,t])
   }
   
-  write.csv(store,file=paste(filename,".csv",sep=""))
+  write.csv(store[,savepoints],file=paste(filename,".csv",sep=""))
 }
