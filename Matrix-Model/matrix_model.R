@@ -105,7 +105,7 @@ male.vals <- function(dum,male.dist,A.adv){
 
 make_mat <- function(surv,popvect,dum,A.adv,dens_reg,maxfreq=1){
   
-  males.dists <- male.dist(dum,popvect,maxfreq)
+  male.dists <- male.dist(dum,popvect,maxfreq)
   
   A <- matrix(0,nrow=18,ncol=18)
   diag(A) <- surv
