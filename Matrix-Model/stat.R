@@ -3,7 +3,7 @@ dist <- function(x,y){
   sqrt(sum((x-y)^2))
 }
 
-statistics <- function(filename,surv,A.adv,dens_reg,Tp=10,empty=FALSE){
+statistics <- function(filename,surv,A.adv,dens_reg,maxfreq,Tp=10,empty=FALSE){
   if(empty){
     return(data.frame(stability=NA,N1=NA,N2=NA,N.1.m=NA,N.2.m=NA,N.1.f=NA,N.2.f=NA,
                       N.1.AA.m = NA, N.1.Aa.m = NA, N.1.aa.m = NA,
@@ -39,12 +39,12 @@ statistics <- function(filename,surv,A.adv,dens_reg,Tp=10,empty=FALSE){
     dist_prior_down <- dist(pert_down,base_vec)
     
     for(t in 1:Tp){
-      A_up <- make_mat(surv,pert_up,dum,A.adv,dens_reg=dens_reg)
+      A_up <- make_mat(surv,pert_up,dum,A.adv,dens_reg=dens_reg,maxfreq=maxfreq)
       pert_up <- A_up %*% pert_up
       pert_up <- pert_up/sum(pert_up)
       
       if(!atzero){
-        A_down <- make_mat(surv,pert_down,dum,A.adv,dens_reg=dens_reg)
+        A_down <- make_mat(surv,pert_down,dum,A.adv,dens_reg=dens_reg,maxfreq=maxfreq)
         pert_down <- A_down %*% pert_down
         pert_down <- pert_down/sum(pert_down)
       }
@@ -88,9 +88,13 @@ statistics <- function(filename,surv,A.adv,dens_reg,Tp=10,empty=FALSE){
   
   sumdat <- dum
   
+  male_vec <- base_vec*as.numeric(sumdat$sex=='m')
+  fem_vec <- base_vec*as.numeric(sumdat$sex=='f')
+  
+  male.dists <- male.dist(sumdat,male_vec,maxfreq,normalize=FALSE)
   # add columns for island 1 and 2
-  sumdat$N.1 <- sumdat$p1*base_vec
-  sumdat$N.2 <- (1-sumdat$p1)*base_vec
+  sumdat$N.1 <- sumdat$p1*fem_vec + male.dists[[1]]
+  sumdat$N.2 <- (1-sumdat$p1)*fem_vec + male.dists[[2]]
   
   N1 <- sum(sumdat$N.1)
   N2 <- sum(sumdat$N.2)

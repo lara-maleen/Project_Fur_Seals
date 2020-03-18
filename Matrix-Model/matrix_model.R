@@ -57,6 +57,39 @@ calc_off_dist <- function(fem,dum,male.dist,A.adv){
   offs
 }
 
+
+
+male.dist <- function(dum,popvect,maxfreq,normalize=TRUE){
+  # male dist isle 1
+  male.dist.1 <- dum$p1*popvect*as.numeric(dum$sex=='m')
+
+  # male dist isle 2
+  male.dist.2 <- (1-dum$p1)*popvect*as.numeric(dum$sex=='m')
+  
+  freq <- sum(male.dist.1) / sum(male.dist.1 + male.dist.2)
+
+  if(freq > maxfreq){
+    diff <- sum(male.dist.1 + male.dist.2)*(freq-maxfreq)/sum(male.dist.1)*male.dist.1
+    male.dist.1 <- male.dist.1 - diff
+    male.dist.2 <- male.dist.2 + diff
+  }else if(freq < (1-maxfreq)){
+    diff <- sum(male.dist.1 + male.dist.2)*((1-freq)-maxfreq)/sum(male.dist.2)*male.dist.2
+    male.dist.1 <- male.dist.1 + diff
+    male.dist.2 <- male.dist.2 - diff
+  }
+  
+  if(sum(male.dist.1) > 0 & normalize){
+    male.dist.1 <- male.dist.1 / sum(male.dist.1)
+  }
+  
+  if(sum(male.dist.2) > 0 & normalize){
+    male.dist.2 <- male.dist.2 / sum(male.dist.2)
+  }
+
+    
+  return(list(male.dist.1,male.dist.2))
+}
+
 male.vals <- function(dum,male.dist,A.adv){
   
   male.dist[dum$Ascore == 2] <- A.adv*male.dist[dum$Ascore == 2]
@@ -70,18 +103,9 @@ male.vals <- function(dum,male.dist,A.adv){
   list(mAB=mAB,mAb=mAb,maB=maB,mab=mab)
 }
 
-make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
+make_mat <- function(surv,popvect,dum,A.adv,dens_reg,maxfreq=1){
   
-  # male dist isle 1
-  male.dist.1 <- dum$p1*popvect*as.numeric(dum$sex=='m')
-  if(sum(male.dist.1) > 0){
-    male.dist.1 <- male.dist.1 / sum(male.dist.1)
-  }
-  # male dist isle 2
-  male.dist.2 <- (1-dum$p1)*popvect*as.numeric(dum$sex=='m')
-  if(sum(male.dist.2) > 0){
-    male.dist.2 <- male.dist.2 / sum(male.dist.2)
-  }
+  males.dists <- male.dist(dum,popvect,maxfreq)
   
   A <- matrix(0,nrow=18,ncol=18)
   diag(A) <- surv
@@ -90,8 +114,8 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
   surv.1 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
   surv.2 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
   
-  male.vals.1 <- male.vals(dum,male.dist.1,A.adv)
-  male.vals.2 <- male.vals(dum,male.dist.2,1)
+  male.vals.1 <- male.vals(dum,male.dists[[1]],A.adv)
+  male.vals.2 <- male.vals(dum,male.dists[[2]],1)
   
   for(i in which(dum$sex == 'f')){
     offs.dist.1 <- calc_off_dist_alt(dum[i,],dum,male.vals.1)
@@ -113,7 +137,7 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg){
 
 
 ## Matrix-like model for the Fur Seals
-run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,dens_reg=0,N0,Tstep=100){
+run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,dens_reg=0,N0,Tstep=100,maxfreq=1){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -134,7 +158,7 @@ run_sim <- function(filename,surv=0,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0
   store <- matrix(NA,nrow=length(N0),ncol=Nt)
   store[,1] <- N0 / sum(N0)
   for(t in 2:Nt){
-    A <- make_mat(surv,store[,t-1],dum2,A.adv,dens_reg)
+    A <- make_mat(surv,store[,t-1],dum2,A.adv,dens_reg,maxfreq = maxfreq)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t])
   }

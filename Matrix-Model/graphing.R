@@ -2,7 +2,7 @@ library(ggplot2)
 library(gridExtra)
 
 plotting_rep <- function(filename){
-  
+  warning("This function is currently outdated and does not take the capping of males into account\n\n")
   store <- read.csv(paste(filename,".csv",sep=""))
   dum2 <- read.csv(paste(filename,".dum",sep=""))
   
