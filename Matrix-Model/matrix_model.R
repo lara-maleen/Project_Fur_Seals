@@ -115,7 +115,7 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg,maxfreq=1){
   surv.2 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
   
   male.vals.1 <- male.vals(dum,male.dists[[1]],A.adv)
-  male.vals.2 <- male.vals(dum,male.dists[[2]],1)
+  male.vals.2 <- male.vals(dum,male.dists[[2]],A.adv)
   
   for(i in which(dum$sex == 'f')){
     offs.dist.1 <- calc_off_dist_alt(dum[i,],dum,male.vals.1)
