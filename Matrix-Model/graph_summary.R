@@ -1,8 +1,8 @@
-setwd("~/Documents/projects/Project_Fur_Seals/Matrix-Model/out3")
+setwd("~/Documents/projects/Project_Fur_Seals/Matrix-Model/out4-capping-symmadv/")
 
 
-dat <- read.csv("summary.stat")
-ref <- read.csv("simruns.csv")
+dat_raw <- read.csv("summary.stat")
+ref_raw <- read.csv("simruns.csv")
 
 library(ggplot2)
 
@@ -10,6 +10,12 @@ head(dat)
 head(ref)
 
 pdf("summary.pdf")
+for(i in unique(ref$maxfreq)){
+plot(0,0,xlim=c(-2,2),ylim=c(-2,2),type="n",axes=FALSE,xlab="",ylab="")
+text(0,0,paste("maxfreq =",i))
+dat <- dat_raw[ref_raw$maxfreq == i,]
+ref <- ref_raw[ref_raw$maxfreq == i,]
+
 plot_stab <- aggregate(dat$stability,by=list(surv=ref$surv,A.adv=ref$A.adv,dens_reg=ref$dens_reg), FUN = function(x) mean(x==0))
 
 p1 <- ggplot(plot_stab,aes(x=surv,y=x)) + geom_point() + facet_grid(dens_reg ~ A.adv,labeller=label_both) + ggtitle("stability") + theme_bw()
@@ -50,5 +56,5 @@ plot_all2$sex <- c('f','m')[1 + as.numeric(plot_all2$condition %in% c("N.1.m","N
 plot_all2$loc <- factor(1 + as.numeric(plot_all2$condition %in% c("N.2.f","N.2.m")))
 p6 <- ggplot(plot_all2,aes(x=factor(dens_reg),y=val,group=paste(condition,dens_reg),col=sex,lty=loc)) + geom_boxplot() + facet_grid(min_val_m ~ min_val_f,labeller=label_both) +theme_bw() +ggtitle(paste("Number of individuals - surv = ",surv,", A.adv = ",aadv,sep=""))
 print(p6)
-
+}
 dev.off()

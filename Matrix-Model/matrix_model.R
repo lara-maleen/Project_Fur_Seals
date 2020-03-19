@@ -105,7 +105,7 @@ male.vals <- function(dum,male.dist,A.adv){
 
 make_mat <- function(surv,popvect,dum,A.adv,dens_reg,maxfreq=1){
   
-  male.dists <- male.dist(dum,popvect,maxfreq)
+  male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
   
   A <- matrix(0,nrow=18,ncol=18)
   diag(A) <- surv
@@ -113,9 +113,12 @@ make_mat <- function(surv,popvect,dum,A.adv,dens_reg,maxfreq=1){
   N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
   surv.1 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
   surv.2 <- 1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
-  
-  male.vals.1 <- male.vals(dum,male.dists[[1]],A.adv)
-  male.vals.2 <- male.vals(dum,male.dists[[2]],A.adv)
+  ml1 <- sum(male.dists[[1]])
+  ml2 <- sum(male.dists[[2]])
+  A.adv.1 <- 2*plogis(5*(ml1))
+  A.adv.2 <- 2*plogis(5*(ml2))
+  male.vals.1 <- male.vals(dum,male.dists[[1]]/ml1,A.adv.1)
+  male.vals.2 <- male.vals(dum,male.dists[[2]]/ml2,A.adv.2)
   
   for(i in which(dum$sex == 'f')){
     offs.dist.1 <- calc_off_dist_alt(dum[i,],dum,male.vals.1)
