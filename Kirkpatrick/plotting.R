@@ -22,10 +22,10 @@ for(i in unique(sims_all$series)){
   par(mfrow=c(1,3))
   
   for(j in unique(sims_series$cats))
-    files <- sims_series$outfile[sims_series$cats==j,]
+    files <- sims_series$outfile[sims_series$cats==j]
     cols <- rainbow(length(files))
     
-    a2 <- sims_series$a2[sims_series$cats==j][1]
+    a2 <- (sims_series$a2[sims_series$cats==j])[1]
     t2s <- seq(0,1,0.01)
     p2s <- equil_offs(sfun,t2s,a2)
     p2s[p2s < 0 ] <- 0
