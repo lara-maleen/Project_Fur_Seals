@@ -50,6 +50,7 @@ sims$outfile <- paste("out",formatC(1:nrow(sims),width=3,flag="0"),sep="")
 setwd(odir)
 
 write.csv(sims,"simruns.csv")
+save(sfuns,file = "sfuns")
 
 setwd(cdir)
 construct_log(odir,c(sources,"main-kirk.R"),sims)
@@ -63,7 +64,7 @@ construct_log(odir,c(sources,"main-kirk.R"),sims)
 setwd(odir.raw)
 out.stat <- foreach(i = 1:nrow(sims)) %dopar% {
  set.seed(sims$seed[i])
- with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=A.adv, min_val_m = 0,min_val_f = 0,Nt=Nt,maxfreq = 1))
+ with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2, min_val_m = 0,min_val_f = 0,Nt=Nt,maxfreq = 1))
   # stats <- statistics(sims$outfile[i],surv = sims$surv[i],A.adv=sims$A.adv[i],dens_reg=sims$dens_reg[i],Tp=10,maxfreq = sims$maxfreq[i])
 return(0)
 }

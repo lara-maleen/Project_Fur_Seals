@@ -114,18 +114,27 @@ make_mat <- function(surv,surv_off,popvect,dum,A.adv,maxfreq=1){
   N.m.1 <- sum(male.dists[[1]])
   N.m.2 <- sum(male.dists[[2]])
   
-  surv.1 <- surv_off(N.m.1/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
-  surv.2 <- surv_off(N.m.2/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+  surv.1 <- 1-surv_off(N.m.1/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
+  surv.2 <- 1-surv_off(N.m.2/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
 
   A.adv.1 <- A.adv #2*plogis(5*(ml1))
   A.adv.2 <- A.adv #2*plogis(5*(ml2))
+  
   male.vals.1 <- male.vals(dum,male.dists[[1]]/N.m.1,A.adv.1)
   male.vals.2 <- male.vals(dum,male.dists[[2]]/N.m.2,A.adv.2)
   
   for(i in which(dum$sex == 'f')){
+    if(N.m.1 > 1e-32){
     offs.dist.1 <- calc_off_dist_alt(dum[i,],dum,male.vals.1)
-    offs.dist.2 <- calc_off_dist_alt(dum[i,],dum,male.vals.2) # male advantage of having genotype AA only counts on island 1
+    }else{
+      offs.dist.1 <- rep(0,18)
+    }
     
+    if(N.m.2 > 1e-32){
+    offs.dist.2 <- calc_off_dist_alt(dum[i,],dum,male.vals.2) # male advantage of having genotype AA only counts on island 1
+    }else{
+      offs.dist.2 <- rep(0,18)
+    }
     # offs.dist.1.fake <- calc_off_dist(dum[i,],dum,male.dist.1,A.adv)
     # offs.dist.2.fake <- calc_off_dist(dum[i,],dum,male.dist.2,1) # male advantage of having genotype AA only counts on island 1
     # 
@@ -171,7 +180,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,Nt=1e3, min
     A <- make_mat(surv,surv_off,store[,t-1],dum2,A.adv,maxfreq = maxfreq)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t])
-    
+
     if(distance(store[,t],final_store[-1,max_store]) > tol | t == Nt){
       max_store <- max_store + 1
       final_store[,max_store] <- c(t,store[,t])
