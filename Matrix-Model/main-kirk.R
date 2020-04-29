@@ -27,10 +27,10 @@ if(!dir.exists(odir)){
 }
 
 # factor 2 codes for the fact that the matrix model looks at total number of males (typically 0 - 0.5), instead of their frequency.
-# hence, a correction has to be made, since the old model looked at frequency of type 2 males (0-1)
+# hence, a correction has to be made, since the old model looked at frequency of type 2 males (0-1) >> not true the model looks at frequency of males!
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
-              linear = function(t2,sval,sslope) sval*2*t2,
-              logistic = function(t2,sval,sslope) sval*plogis(sslope*(2*t2-0.5)))
+              linear = function(t2,sval,sslope) sval*t2,
+              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)))
 
 a2s <- c(1.2,1.5,3)
 svals <- c(0.1,0.3,0.5)

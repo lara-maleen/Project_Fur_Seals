@@ -17,14 +17,14 @@ pdf("out-graph.pdf")
 for(i in unique(sims_all$series)){
   sims_series <- sims_all[sims_all$series == i,]
   sfun <- function(t2) sfuns[[as.character(sims_series$stype[i])]](t2,sims_series$sval[i],sims_series$sslope[i])
-  par(mfrow=c(1,1))
+  par(mfrow=c(2,2))
   plot(seq(0,1,0.01),sfun(seq(0,1,0.01)),type="l",xlim=c(0,1),ylim=c(0,1),xlab="t2",ylab="s")
   
-  par(mfrow=c(1,3))
+  # par(mfrow=c(1,3))
   
-  for(j in unique(sims_series$cats))
+  for(j in unique(sims_series$cats)){
     # j <- 32
-    cat(j,"\t")
+    # cat(j,"\t")
     files <- as.character(sims_series$outfile[sims_series$cats==j])
     cols <- rainbow(length(files))
     
@@ -34,13 +34,14 @@ for(i in unique(sims_all$series)){
     p2s[p2s < 0 ] <- 0
     p2s[p2s>1] <- 1
     
-    plot(p2s,t2s,xlim=c(0,1),ylim=c(0,1),xlab="p2",ylab="t2",type="l",main=paste("a2 = ",a2))
+    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="t2",ylab="p2",type="l",main=paste("a2 = ",a2))
     
     for(k in 1:length(files)){
       cat(k,"\n")
       tmp <- read.csv(paste(wdir,"raw/",files[k],sep=""))
-      lines(tmp$x2+tmp$x4,tmp$x3+tmp$x4,col=cols[k])
-      points(tmp$x2[nrow(tmp)]+tmp$x4[nrow(tmp)],tmp$x3[nrow(tmp)]+tmp$x4[nrow(tmp)],cex=2,col=cols[k])
+      lines(tmp$x3+tmp$x4,tmp$x2+tmp$x4,col=cols[k])
+      points(tmp$x3[nrow(tmp)]+tmp$x4[nrow(tmp)],tmp$x2[nrow(tmp)]+tmp$x4[nrow(tmp)],cex=2,col=cols[k])
     }
   }
+}
 dev.off()

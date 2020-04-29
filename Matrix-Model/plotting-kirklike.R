@@ -1,5 +1,5 @@
 rm(list=ls())
-wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-1/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
+wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-corrected/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
 setwd(wdir)
 
 
@@ -11,7 +11,7 @@ equil_offs <- function(sfun,t2,a2){
 sims_all <- read.csv("simruns.csv")
 sims_all$series <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope))))
 sims_all$cats <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope,a2))))
-load("~/Documents/projects/Project_Fur_Seals/Kirkpatrick/out1/sfuns")
+load("sfuns")
 sim_cats <- sims_all[sims_all$replicate==1,]
 pdf("out-graph.pdf")
 for(i in unique(sims_all$series)){
@@ -34,20 +34,20 @@ for(i in unique(sims_all$series)){
     p2s[p2s < 0 ] <- 0
     p2s[p2s>1] <- 1
     
-    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="t2",ylab="p2",type="l",main=paste("a2 = ",a2))
+    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="A alleles",ylab="B alleles",type="l",main=paste("a2 = ",a2))
     
     for(k in 1:length(files)){
       cat(k,"\n")
       if(file.exists(paste(wdir,"raw/",files[k],".csv",sep="")))
       tmp <- read.csv(paste(wdir,"raw/",files[k],".csv",sep=""))
       dum <- read.csv(paste(wdir,"raw/",files[k],".dum",sep=""))
-      Afreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) x*dum$Ascore/2)
-      Bfreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) x*dum$Bscore/2)
-      tps <- c(1:50,seq(51,length(Afreq),length.out = 50))
-      Afreq <- Afreq[tps]
-      Bfreq <- Bfreq[tps]
+      Afreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*dum$Ascore/2)/sum(x))
+      Bfreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*dum$Bscore/2)/sum(x))
+      #tps <- c(1:50,seq(51,length(Afreq),length.out = 50))
+      #Afreq <- Afreq#[tps]
+      #Bfreq <- Bfreq#[tps]
       lines(Afreq,Bfreq,col=cols[k])
-      points(Afreq[nrow(tmp)],Bfreq[nrow(tmp)],cex=2,col=cols[k])
+      points(Afreq[nrow(tmp)],Bfreq[nrow(tmp)],cex=0.5,col=cols[k])
     }
   }
 }
