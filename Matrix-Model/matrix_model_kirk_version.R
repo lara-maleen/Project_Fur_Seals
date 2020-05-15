@@ -93,6 +93,7 @@ male.dist <- function(dum,popvect,maxfreq,normalize=TRUE){
 male.vals <- function(dum,male.dist,A.adv){
   
   male.dist[dum$Ascore == 2] <- A.adv*male.dist[dum$Ascore == 2]
+  male.dist[dum$Ascore == 1] <- (1+0.5*(A.adv-1))*male.dist[dum$Ascore == 1]
   male.dist <- male.dist/sum(male.dist)
   
   mAB <- sum(male.dist*0.5*dum$Ascore*0.5*dum$Bscore) # prob. of inheriting AB from father
@@ -103,19 +104,22 @@ male.vals <- function(dum,male.dist,A.adv){
   list(mAB=mAB,mAb=mAb,maB=maB,mab=mab)
 }
 
-make_mat <- function(surv,surv_off,popvect,dum,A.adv,maxfreq=1){
+make_mat <- function(surv,surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1){
   
   male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
   
   A <- matrix(0,nrow=18,ncol=18)
   diag(A) <- surv
-  # N.f.1 <- sum((dum$p1*popvect)[dum$sex == 'f'])
-  # N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
+  
+  N.f.1 <- sum((dum$p1*popvect)[dum$sex == 'f'])
+  N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
+
   N.m.1 <- sum(male.dists[[1]])
   N.m.2 <- sum(male.dists[[2]])
   
-  surv.1 <- 1-surv_off(N.m.1/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
-  surv.2 <- 1-surv_off(N.m.2/(N.m.1+N.m.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+  
+  surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.1/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
+  surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.2/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
 
   A.adv.1 <- A.adv #2*plogis(5*(ml1))
   A.adv.2 <- A.adv #2*plogis(5*(ml2))
@@ -154,7 +158,7 @@ distance <- function(x,y){
 }
 
 ## Matrix-like model for the Fur Seals
-run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1){
+run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -177,7 +181,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,Nt=1e3, min
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(surv,surv_off,store[,t-1],dum2,A.adv,maxfreq = maxfreq)
+    A <- make_mat(surv,surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t])
 

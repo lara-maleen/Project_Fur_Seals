@@ -1,5 +1,5 @@
 rm(list=ls())
-wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-corrected/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
+wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-corrected-p01/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
 setwd(wdir)
 
 
@@ -34,8 +34,9 @@ for(i in unique(sims_all$series)){
     p2s[p2s < 0 ] <- 0
     p2s[p2s>1] <- 1
     
-    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="A alleles",ylab="B alleles",type="l",main=paste("a2 = ",a2))
-    
+    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="Male type",ylab="Female type",type="n",main=paste("a2 = ",a2))
+    abline(h=0.5,col="grey")
+    abline(v=0.5,col="grey")
     for(k in 1:length(files)){
       cat(k,"\n")
       if(file.exists(paste(wdir,"raw/",files[k],".csv",sep="")))
@@ -43,11 +44,19 @@ for(i in unique(sims_all$series)){
       dum <- read.csv(paste(wdir,"raw/",files[k],".dum",sep=""))
       Afreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*dum$Ascore/2)/sum(x))
       Bfreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*dum$Bscore/2)/sum(x))
+      
+      Ahetfreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*(dum$Ascore==1))/sum(x))
+      Bhetfreq <- apply(tmp[,c(-1,-2)],1,FUN = function(x) sum(x*(dum$Bscore==1))/sum(x))
       #tps <- c(1:50,seq(51,length(Afreq),length.out = 50))
       #Afreq <- Afreq#[tps]
       #Bfreq <- Bfreq#[tps]
       lines(Afreq,Bfreq,col=cols[k])
       points(Afreq[nrow(tmp)],Bfreq[nrow(tmp)],cex=0.5,col=cols[k])
+      
+      # lines(Ahetfreq,Bhetfreq,col=cols[k],lty=3)
+      # points(Ahetfreq[nrow(tmp)],Bhetfreq[nrow(tmp)],cex=0.25,col=cols[k])
+      
+      # points(2*Afreq[nrow(tmp)]*(1-Afreq[nrow(tmp)]),2*Bfreq[nrow(tmp)]*(1-Bfreq[nrow(tmp)]),pch=3,cex=0.25,col=cols[k])
     }
   }
 }
