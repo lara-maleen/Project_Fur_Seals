@@ -13,7 +13,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model_kirk_version.R","logs.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-kirklike-additive/"
+odir <- "/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -32,16 +32,19 @@ sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
               linear = function(t2,sval,sslope) sval*t2,
               logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)))
 
-a2s <- c(1.2,1.5,3)
-svals <- c(0.1,0.3,0.5)
-sslopes <- c(7.5,20)
+a2s <- c(1.2,3)
+svals <- c(0.05,0.1,0.3,0.5)
+sslopes <- c(7.5)
 wms <- c(0,0.5,1)
+ds <- c(0.25,0.5,0.75)
+mvm <- c(0,0.05)
+mvf <- c(0,0.05)
 # start <- expand.grid(x1 = seq(0.05,0.85,0.2), x2 = seq(0.05,0.85,0.2),x3 = seq(0.05,0.85,0.2))
 # start$x4 <- 1 - rowSums(start)
 # start <- start[!apply(start,1,FUN = function(x) any(x <0 | x > 1)),]
 Nrep <- 20
-tmp1 <- expand.grid(a2=a2s,wm=wms,stype= c('constant','linear'),sval = svals,sslope=NA,replicate=1:Nrep,stringsAsFactors = FALSE)
-tmp2 <- expand.grid(a2=a2s,wm=wms,stype=c('logistic'),sval=svals,sslope=sslopes,replicate=1:Nrep, stringsAsFactors = FALSE)
+tmp1 <- expand.grid(a2=a2s,wm=wms,stype= c('constant','linear'),sval = svals,sslope=NA,replicate=1:Nrep,d=ds,mvm=mvm,mvf=mvf,stringsAsFactors = FALSE)
+tmp2 <- expand.grid(a2=a2s,wm=wms,stype=c('logistic'),sval=svals,sslope=sslopes,replicate=1:Nrep,d=ds,mvm=mvm,mvf=mvf, stringsAsFactors = FALSE)
 sims <- rbind(tmp1,tmp2)
 sims$wf <- 1-sims$wm
 Nt <- 1e5
@@ -65,7 +68,7 @@ construct_log(odir,c(sources,"main-kirk.R"),sims)
 setwd(odir.raw)
 out.stat <- foreach(i = 1:nrow(sims)) %dopar% {
  set.seed(sims$seed[i])
- with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = 0,min_val_f = 0,Nt=Nt,maxfreq = 1))
+ with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = mvm,min_val_f = mvf,Nt=Nt,d=d,maxfreq = 1))
   # stats <- statistics(sims$outfile[i],surv = sims$surv[i],A.adv=sims$A.adv[i],dens_reg=sims$dens_reg[i],Tp=10,maxfreq = sims$maxfreq[i])
 return(0)
 }

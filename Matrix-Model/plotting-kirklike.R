@@ -1,5 +1,5 @@
 rm(list=ls())
-wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-corrected-p01/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
+wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-additive/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
 setwd(wdir)
 
 
@@ -7,10 +7,11 @@ setwd(wdir)
 equil_offs <- function(sfun,t2,a2){
   - sfun(t2)*(1 + t2*(a2 - 1))/((sfun(t2) -1 - sfun(t2)*t2)*(a2 -1))
 }
+# head(sims_all)
 
 sims_all <- read.csv("simruns.csv")
 sims_all$series <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope))))
-sims_all$cats <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope,a2))))
+sims_all$cats <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope,a2,wf,wm))))
 load("sfuns")
 sim_cats <- sims_all[sims_all$replicate==1,]
 pdf("out-graph.pdf")
@@ -29,12 +30,14 @@ for(i in unique(sims_all$series)){
     cols <- rainbow(length(files))
     
     a2 <- (sims_series$a2[sims_series$cats==j])[1]
+    wf <- (sims_series$wf[sims_series$cats==j])[1]
+    wm <- (sims_series$wm[sims_series$cats==j])[1]
     t2s <- seq(0,1,0.01)
     p2s <- equil_offs(sfun,t2s,a2)
     p2s[p2s < 0 ] <- 0
     p2s[p2s>1] <- 1
     
-    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="Male type",ylab="Female type",type="n",main=paste("a2 = ",a2))
+    plot(t2s,p2s,xlim=c(0,1),ylim=c(0,1),xlab="Male type",ylab="Female type",type="n",main=paste("a2 = ",a2,"wf = ",wf,", wm = ",wm))
     abline(h=0.5,col="grey")
     abline(v=0.5,col="grey")
     for(k in 1:length(files)){
