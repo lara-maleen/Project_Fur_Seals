@@ -1,23 +1,18 @@
 rm(list=ls())
-wdir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-additive/" #"/data/home/koen/Kirk_Fur_Seals/out1/"
+wdir <- "data/home/koen/Fur_Seals/out-kirklike-additive-geom-het" #"/data/home/koen/Kirk_Fur_Seals/out1/"
+idirs <- c("data/home/koen/Fur_Seals/out-kirklike-additive-geom-het","data/home/koen/Fur_Seals/out-kirklike-additive-geom-het-dom")
 setwd(wdir)
 
-equil_offs <- function(sfun,t2,a2){
-  - sfun(t2)*(1 + t2*(a2 - 1))/((sfun(t2) -1 - sfun(t2)*t2)*(a2 -1))
-}
-# head(sims_all)
+simruns <- lapply(idirs, FUN = function(x) read.csv(paste(x,"simruns.csv",sep="/")))
+lapply(1:length(simruns), FUN = function(x){x$idir <- i; x})
+sims_all <- do.call(rbind,simruns)#read.csv("simruns.csv")
 
-sims_all <- read.csv("simruns.csv")
-sims_all$series <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope))))
-sims_all$cats <- as.numeric(factor(with(sims_all,paste(stype,sval,sslope,a2,wf,wm))))
-load("sfuns")
+dumdat <- lapply(idirs,FUN=function(x) read.csv(paste(x,"raw/out001.dum",sep="/")))
+if(!identical(dumdat[[1]],dumdat[[2]])){warning("dumdats different!\n")}
 
-sim_cats <- sims_all[sims_all$replicate==1,]
-
-dumdat <- read.csv("raw/out001.dum")
-ress <- matrix(NA,nrow=nrow(sims_all),ncol=nrow(dumdat))
+ress <- matrix(NA,nrow=nrow(sims_all),ncol=nrow(dumdat[[1]]))
 for(i in 1:nrow(sims_all)){
-  dm <- read.csv(paste("raw/",sims_all$outfile[i],".csv",sep=""))[,-1]
+  dm <- read.csv(paste(idir[sims_all$idir[i]],"/raw/",sims_all$outfile[i],".csv",sep=""))[,-1]
   ress[i,]  <- as.numeric(dm[nrow(dm),-1])
 }
 sumdat <- cbind(sims_all,data.frame(
@@ -28,19 +23,35 @@ sumdat <- cbind(sims_all,data.frame(
   NmAA = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Ascore==2 & dumdat$sex=='m')*x)), # NmAA
   NmAa = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Ascore==1 & dumdat$sex=='m')*x)),
   Nmaa = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Ascore==0 & dumdat$sex=='m')*x)),
-  NmBB = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==2 & dumdat$sex=='f')*x)), # NfBB
-  NmBb = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==1 & dumdat$sex=='f')*x)),
-  Nmbb = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==0 & dumdat$sex=='f')*x))
+  NfBB = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==2 & dumdat$sex=='f')*x)), # NfBB
+  NfBb = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==1 & dumdat$sex=='f')*x)),
+  Nfbb = apply(ress,1, FUN = function(x) sum(as.numeric(dumdat$Bscore==0 & dumdat$sex=='f')*x))
 ))
 library(ggplot2)
 library(tidyr)
 sumdat$dnf <- sumdat$Nf1 - sumdat$Nf2
 sumdat$dnm <- sumdat$Nm1 - sumdat$Nm2
+sumdat$A <- sumdat$NmAA + 0.5*sumdat$NmAa
+sumdat$B <- sumdat$NfBB + 0.5*sumdat$NfBb
 sumdat2 <- gather(sumdat,type,val,dnf:dnm)
-ggplot(sumdat2,aes(y=val,x=factor(wf),col=type)) + geom_boxplot() + facet_grid(a2~paste(stype,sval,sslope)) +theme_bw()
-bla <- ggplot(sumdat2,aes(y=val,x=paste(stype,sval,sslope),col=type)) + geom_boxplot() + facet_grid(a2~wf) +theme_bw()
+sumdat3 <- gather(sumdat,type,val,A:B)
+
+cats <- expand.grid(d=unique(sims_all$d),mvm=unique(sims_all$mvm),mvf=unique(sims_all$mvf))
+pdf("out-graph-2.pdf")
+for(i in nrow(cats)){
+d <- cats$d[i]
+mvm <- cats$mvm[i]
+mvf <- cat$mvf[i]
+bla0 <- ggplot(sumdat2[sumdat2$d==d & sumdat2$mvm==mvm & sumdat2$mvf==mvf,],aes(y=val,x=factor(wf),col=type)) + geom_boxplot() + facet_grid(a2~paste(stype,sval,sslope)) +theme_bw()  + ggtitle(paste("d =",i,", mvm =",mvm,", mvf =",mvf))
+bla <- ggplot(sumdat2[sumdat2$d==d & sumdat2$mvm==mvm & sumdat2$mvf==mvf,],aes(y=val,x=paste(stype,sval,sslope),col=type)) + geom_boxplot() + facet_grid(a2~wf) +theme_bw()  + ggtitle(paste("d =",i,", mvm =",mvm,", mvf =",mvf))
+bla1 <- ggplot(sumdat3[sumdat3$d==d & sumdat3$mvm==mvm & sumdat3$mvf==mvf,],aes(y=val,x=factor(wf),col=type)) + geom_boxplot() + facet_grid(a2~paste(stype,sval,sslope)) +theme_bw()  + ggtitle(paste("d =",i,", mvm =",mvm,", mvf =",mvf))
+bla2 <- ggplot(sumdat3[sumdat3$d==d & sumdat3$mvm==mvm & sumdat3$mvf==mvf,],aes(y=val,x=paste(stype,sval,sslope),col=type)) + geom_boxplot() + facet_grid(a2~wf) +theme_bw() + ggtitle(paste("d =",i,", mvm =",mvm,", mvf =",mvf))
 
 # -------------------------- #
-pdf("out-graph-2.pdf")
+
+print(bla0)
 print(bla)
+print(bla1)
+print(bla2)
+}
 dev.off()
