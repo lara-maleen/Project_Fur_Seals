@@ -11,7 +11,7 @@ registerDoMC(cores)
 
 # Code dir
 cdir <- "/data/home/koen/Fur_Seals/Code/"
-sources <- c("matrix_model_kirk_version.R","logs.R")
+sources <- c("matrix_model_kirk_version.R","logs.R","plotting_kirk_fun.R")
 # Out dir
 odir <- "/data/home/koen/Fur_Seals/out-kirklike-mvm-mvf-scan/"
 odir.raw <- paste(odir,"raw",sep="")
@@ -93,6 +93,6 @@ return(0)
 # write.csv(out.stat,"summary.stat")
 # log files (incl. the code names)
 # construct_log()
-source("plotting_kirk_fun.R")
+# source(file.path(cdir,"plotting_kirk_fun.R"))
 plot_one_ax(odir)
 # 
