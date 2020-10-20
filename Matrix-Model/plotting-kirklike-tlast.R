@@ -55,7 +55,8 @@ sumdat$Bb <- sumdat$NfBb/(sumdat$NfBB + sumdat$NfBb +sumdat$Nfbb)
 sumdat$bb <- sumdat$Nfbb/(sumdat$NfBB + sumdat$NfBb +sumdat$Nfbb)
 
 write.csv(sumdat,"sumdat.csv")
-sumdat <- read.csv("/home/koen/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-additive-geom-het/sumdat.csv")
+sumdat <- read.csv("sumdat.csv")
+# sumdat <- read.csv("/home/koen/Documents/projects/Project_Fur_Seals/Matrix-Model/out-kirklike-additive-geom-het/sumdat.csv")
 
 datN <- gather(sumdat,type,val,ff1:fm1)
 datA <- gather(sumdat,type,val,AA:aa)
@@ -84,7 +85,7 @@ vs <- function(ts,dat,dum){
 }
 
 refvals <- function(dat){
-  out <- list
+  out <- list()
   for(i in 1:nrow(dat)){
     dm <- read.csv(paste(idirs[dat$idir[i]],"/raw/",dat$outfile[i],".csv",sep=""))[,-1]
     dumdat <- read.csv(paste(idirs[dat$idir[i]],"/raw/",dat$outfile[i],".dum",sep=""))
@@ -103,31 +104,31 @@ refvals <- function(dat){
 plotref <- function(refvals){
   par(mfrow=c(1,3))
   
-  maxt <- max(unlist(lapply(refvals,FUN = function(x) max(x$ts))))
+  maxt <- max(unlist(lapply(refvals,FUN = function(x) max(x$t))))
 
   # ff
   plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Island occupancy",type="n")
   for(i in 1:length(refvals)){
-    lines(refvals[[i]]$ts,refvals[[i]]$ff1,col="red")
-    lines(refvals[[i]]$ts,refvals[[i]]$mf1,col="blue")
+    lines(refvals[[i]]$t,refvals[[i]]$ff1,col="red")
+    lines(refvals[[i]]$t,refvals[[i]]$fm1,col="blue")
     legend("topright",legend=c('f','m'),lty=1,col=c("red","blue"))
   }
   # AA, Aa, aa
   plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n")
   for(i in 1:length(refvals)){
-    lines(refvals[[i]]$ts,refvals[[i]]$AA,lty=2)
-    lines(refvals[[i]]$ts,refvals[[i]]$Aa,lty=1)
-    lines(refvals[[i]]$ts,refvals[[i]]$aa,lty=3)
-    legend("topright",legend=c('AA','Aa','aa'),lty=c(2,1,3))
+    lines(refvals[[i]]$t,refvals[[i]]$AA,col=rgb(1,0,0,alpha=0.1))
+    lines(refvals[[i]]$t,refvals[[i]]$Aa,col=rgb(0,0,1,alpha=0.1))
+    lines(refvals[[i]]$t,refvals[[i]]$aa,col=rgb(0,0,0,alpha=0.1))
+    legend("topright",legend=c('AA','Aa','aa'),lty=1,col=c("red","blue","black"))
   }
   
   # BB, Bb, bb
   plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n")
   for(i in 1:length(refvals)){
-    lines(refvals[[i]]$ts,refvals[[i]]$BB,lty=2)
-    lines(refvals[[i]]$ts,refvals[[i]]$Bb,lty=1)
-    lines(refvals[[i]]$ts,refvals[[i]]$bb,lty=3)
-    legend("topright",legend=c('BB','Bb','bb'),lty=c(2,1,3))
+    lines(refvals[[i]]$t,refvals[[i]]$BB,col=rgb(1,0,0,alpha=0.1))
+    lines(refvals[[i]]$t,refvals[[i]]$Bb,col=rgb(0,0,1,alpha=0.1))
+    lines(refvals[[i]]$t,refvals[[i]]$bb,col=rgb(0,0,0,alpha=0.1))
+    legend("topright",legend=c('BB','Bb','bb'),lty=1,col=c("red","blue","black"))
   }
 }
 
@@ -139,10 +140,11 @@ caseplot <- function(sumdat,mc,curvar){
   ind <- apply(tmp1,1,all)
   
   ddat <- sumdat[ind,]
-  refcase <- ddat$curvar == mc$curvar
+  refcase <- ddat[,curvar] == mc[curvar]
   
   plot(ddat[,curvar],ddat$ff1,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red")
   points(ddat[,curvar],ddat$fm1,pch=1+3*as.numeric(refcase),col="blue")
+  abline(h=0.5,col="grey")
   legend("topright",legend=c('f','m'),pch = 1,col=c("red","blue"))
   
   plot(ddat[,curvar],ddat$AA,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red")
@@ -171,7 +173,7 @@ main_plot <- function(sumdat,mc){
   for(curvar in names(mc)){
     if(length(unique(sumdat[,curvar])) > 1){
       # now we have some plotting to do. 
-      casplot(sumdat,mc,curvar)
+      caseplot(sumdat,mc,curvar)
     }
   }
 }
