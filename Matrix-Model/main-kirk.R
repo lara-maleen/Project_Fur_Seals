@@ -13,7 +13,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model_kirk_version.R","logs.R","plotting_kirk_fun.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-kirklike-mvm-mvf-scan/"
+odir <- "/data/home/koen/Fur_Seals/out-kirklike-AAsurv/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -30,11 +30,13 @@ if(!dir.exists(odir)){
 # hence, a correction has to be made, since the old model looked at frequency of type 2 males (0-1) >> not true the model looks at frequency of males!
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
              linear = function(t2,sval,sslope) sval*t2,
-              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)))
+              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)),
+             allee = function(t2,sval,sslope) sval*(exp(-sslope*t2) + plogis(sslope*(t2-0.5)))
+             )
 
 # determine focal
-focal <- list(a2=3,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05)
-var.vars <- list(stype="constant",mvm=seq(0,1,0.05),mvf=seq(0,1,0.05)) # variable levels for the variables
+focal <- list(a2=3,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.1)
+var.vars <- list(stype="constant",d=seq(0,1,0.1),Apenalty=c(0,0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5)) # variable levels for the variables
 
 pre_sims <- do.call(rbind,lapply(names(var.vars),FUN = function(curvar){
   if(!curvar %in% names(focal)){stop("unknown variable supplied to var.vars")}
@@ -56,9 +58,9 @@ pre_sims <- do.call(rbind,lapply(names(var.vars),FUN = function(curvar){
 pre_sims <- rbind(pre_sims,as.data.frame(focal))
 
 Nrep <- 20
-pre_sims_rep <- expand.grid(rown=1:Nrep,rep=1:Nrep)
+pre_sims_rep <- expand.grid(rown=1:nrow(pre_sims),rep=1:Nrep)
 sims <- pre_sims[pre_sims_rep$rown,]
-sims$rep <-pre_sims_rep$rep
+sims$replicate <-pre_sims_rep$rep
 sims$wf <- 1-sims$wm
 
 Nt <- 1e5
@@ -84,7 +86,7 @@ construct_log(odir,c(sources,"main-kirk.R"),sims)
 setwd(odir.raw)
 out.stat <- foreach(i = 1:nrow(sims)) %dopar% {
  set.seed(sims$seed[i])
- with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = mvm,min_val_f = mvf,Nt=Nt,d=d,d2=d2,maxfreq = 1))
+ with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = mvm,min_val_f = mvf,Nt=Nt,d=d,d2=d2,maxfreq = 1,Apenalty = Apenalty))
   # stats <- statistics(sims$outfile[i],surv = sims$surv[i],A.adv=sims$A.adv[i],dens_reg=sims$dens_reg[i],Tp=10,maxfreq = sims$maxfreq[i])
 return(0)
 }

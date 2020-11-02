@@ -259,7 +259,7 @@ distance <- function(x,y){
 # FALSE/TRUE or TRUE/TRUE only the descriptive dum object
 # FALSE/FALSE timeseries and descriptive dum object are stored to two files, filename.csv and filename.dum
 #
-run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE){
+run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -277,7 +277,8 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,N
   # adding the chances of going to island 1 to each class in the dum object:
   dum2$p1 <- as.numeric(dum2$sex=='m')*(min_val_m+(as.numeric(dum2$Ascore==1)*d2+as.numeric(dum2$Ascore==2))*(1-2*min_val_m)) + 
               as.numeric(dum2$sex == 'f')*(min_val_f+(as.numeric(dum2$Bscore==1)*d2+as.numeric(dum2$Bscore==2))*(1-2*min_val_f))
-  
+  dum2$surv <- (1 - Apenalty)^(as.numeric(dum2$sex=='m')*(as.numeric(dum2$Ascore==2) + d*as.numeric(dum2$Ascore==1)))
+    
   if(dumgen){return(dum2)}
   if(!test){write.csv(dum2,file=paste(filename,".dum",sep=""))}
 
@@ -292,7 +293,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,N
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(surv,surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d)
+    A <- make_mat(dum2$surv,surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t]) # keeping population size constant
 

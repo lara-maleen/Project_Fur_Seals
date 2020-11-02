@@ -1,4 +1,3 @@
-rm(list=ls())
 plot_one_ax <- function(idirs){
   wdir <- idirs[1]#"/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het" #"/data/home/koen/Kirk_Fur_Seals/out1/"
   # idirs <- c("/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het","/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het-dom")
