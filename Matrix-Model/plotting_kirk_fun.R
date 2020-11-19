@@ -3,7 +3,7 @@ plot_one_ax <- function(idirs){
   # idirs <- c("/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het","/data/home/koen/Fur_Seals/out-kirklike-additive-geom-het-dom")
   setwd(wdir)
 
-  simruns <- lapply(idirs, FUN = function(x) read.csv(paste(x,"simruns.csv",sep="/")))
+  simruns <- lapply(idirs, FUN = function(x) read.csv(paste(x,"simruns.csv",sep="/"),stringsAsFactors = FALSE))
   simruns <- lapply(1:length(simruns), FUN = function(x){tmp <- simruns[[x]]; tmp$idir <- x; tmp})
   sims_all <- do.call(rbind,simruns)#read.csv("simruns.csv")
 
@@ -87,14 +87,14 @@ plot_one_ax <- function(idirs){
     maxt <- max(unlist(lapply(refvals,FUN = function(x) max(x$t))))
 
     # ff
-    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Island occupancy",type="n")
+    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Island occupancy",type="n",ylab="Fraction on island 1")
     for(i in 1:length(refvals)){
       lines(refvals[[i]]$t,refvals[[i]]$ff1,col="red")
       lines(refvals[[i]]$t,refvals[[i]]$fm1,col="blue")
       legend("topright",legend=c('f','m'),lty=1,col=c("red","blue"))
     }
     # AA, Aa, aa
-    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n")
+    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n",ylab="Fraction of males with genotype ...")
     for(i in 1:length(refvals)){
       lines(refvals[[i]]$t,refvals[[i]]$AA,col=rgb(1,0,0,alpha=0.1))
       lines(refvals[[i]]$t,refvals[[i]]$Aa,col=rgb(0,0,1,alpha=0.1))
@@ -103,7 +103,7 @@ plot_one_ax <- function(idirs){
     }
   
     # BB, Bb, bb
-    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n")
+    plot(0,0,ylim=c(0,1),xlim=c(1,maxt),main="Reference case - Gene frequency",type="n",ylab="Fraction of females with genotype ...")
     for(i in 1:length(refvals)){
       lines(refvals[[i]]$t,refvals[[i]]$BB,col=rgb(1,0,0,alpha=0.1))
       lines(refvals[[i]]$t,refvals[[i]]$Bb,col=rgb(0,0,1,alpha=0.1))
@@ -121,18 +121,23 @@ plot_one_ax <- function(idirs){
   
     ddat <- sumdat[ind,]
     refcase <- ddat[,curvar] == mc[curvar]
-  
-    plot(ddat[,curvar],ddat$ff1,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red")
+    if(curvar == 'stype'){
+      ddat[,curvar] <- factor(ddat[,curvar])
+    }
+    plot.default(ddat[,curvar],ddat$ff1,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red",ylab="fraction on island 1")
     points(ddat[,curvar],ddat$fm1,pch=1+3*as.numeric(refcase),col="blue")
     abline(h=0.5,col="grey")
     legend("topright",legend=c('f','m'),pch = 1,col=c("red","blue"))
-  
-    plot(ddat[,curvar],ddat$AA,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red")
+    if(curvar == 'stype'){
+      lv <- levels(ddat[,curvar])
+      legend("topleft",legend=paste(1:length(lv),lv),pch = 1,col=c("red","blue"))
+    }
+    plot.default(ddat[,curvar],ddat$AA,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red",ylab="Genotype frequency")
     points(ddat[,curvar],ddat$Aa,pch=1+3*as.numeric(refcase),col="blue")
     points(ddat[,curvar],ddat$aa,pch=1+3*as.numeric(refcase),col="black")
     legend("topright",legend=c('AA','Aa','aa'),pch = 1,col=c("red","blue","black"))
   
-    plot(ddat[,curvar],ddat$BB,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red")
+    plot.default(ddat[,curvar],ddat$BB,ylim=c(0,1),pch=1+3*as.numeric(refcase),xlab=curvar,col="red",ylab="Genotype frequency")
     points(ddat[,curvar],ddat$Bb,pch=1+3*as.numeric(refcase),col="blue")
     points(ddat[,curvar],ddat$bb,pch=1+3*as.numeric(refcase),col="black")
     legend("topright",legend=c('BB','Bb','bb'),pch = 1,col=c("red","blue","black"))
@@ -158,7 +163,7 @@ plot_one_ax <- function(idirs){
     }
   }
 
-  m0 <- as.list(read.csv("focal.csv")[,-1])#list(mvm=0,mvf=0,stype='logistic',sval=0.3,wf=0.5,a2=3,d=0.5)
+  m0 <- as.list(read.csv("focal.csv",stringsAsFactors = FALSE)[,-1])#list(mvm=0,mvf=0,stype='logistic',sval=0.3,wf=0.5,a2=3,d=0.5)
   pdf("sumplot.pdf")
   main_plot(sumdat,m0)
   dev.off()

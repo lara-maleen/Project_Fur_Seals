@@ -76,7 +76,25 @@ calc_off_dist <- function(fem,dum,male.dist,A.adv){
   offs
 }
 
-
+female.dist <- function(dum,popvect,normalize=TRUE){
+  # male dist isle 1
+  female.dist.1 <- dum$p1*popvect*as.numeric(dum$sex=='f')
+  
+  # female dist isle 2
+  female.dist.2 <- (1-dum$p1)*popvect*as.numeric(dum$sex=='f')
+  
+  
+  if(sum(female.dist.1) > 0 & normalize){
+    female.dist.1 <- female.dist.1 / sum(female.dist.1)
+  }
+  
+  if(sum(female.dist.2) > 0 & normalize){
+    female.dist.2 <- female.dist.2 / sum(female.dist.2)
+  }
+  
+  
+  return(list(female.dist.1,female.dist.2))
+}
 
 # Function for determining the male distribution on each island based on the population vector.
 # input
@@ -155,6 +173,37 @@ male.vals <- function(dum,male.dist,A.adv,d){
   list(mAB=mAB,mAb=mAb,maB=maB,mab=mab)
 }
 
+surv_adult <- function(dum,male.dists,female.dists){
+  
+  # on island 1, male survival depends on the amount of AA males
+  # on island 2, all males survive equally
+  
+  # calculate sex and genotype specific survival on each island, based on density/frequency
+  # N.m.1.AA <- sum(male.dists[[1]])
+  #N.m.2 <- sum(male.dists[[2]])
+  
+  #N.f.1 <- sum(female.dists[[1]])
+  #N.f.2 <- sum(female.dists[[2]])
+  
+  surv.f.1 <- 1
+  surv.f.2 <- 1
+  surv.m.1 <- dum$surv # density independent, but genotype determined survival
+  surv.m.2 <- 1
+  # print(surv.m.1)
+  # finally: average survival based on actual distributions. i.e. 
+  pre.surv <- ifelse(dum$sex=='f',(female.dists[[1]]*surv.f.1 + female.dists[[2]]*surv.f.2)/(female.dists[[1]]+female.dists[[2]]),(male.dists[[1]]*surv.m.1 + male.dists[[2]]*surv.m.2)/(male.dists[[1]]+male.dists[[2]]))
+  
+  pre.surv[male.dists[[1]] == 0 & male.dists[[2]] == 0 & dum$sex=='m'] <- 1
+  pre.surv[female.dists[[1]] == 0 & female.dists[[2]] == 0 & dum$sex=='f'] <- 1
+  # account for double zeroes in denominator!
+  
+  surv <- pre.surv # combine surv.f and surv.m
+
+  # print(cbind(dum,surv))
+  # stop("err")
+  return(surv)
+}
+
 # Function that generates the matrix to advance the population vector to the next time step
 # input:
 # surv: survival of adults
@@ -173,19 +222,25 @@ male.vals <- function(dum,male.dist,A.adv,d){
 # output:
 # a length(popvect) x length(popvect) matrix that describes the population dynamics from t to t+1. Offspring is attributed to females only,
 # but the distribution of the offspring depends on the male distribution on the islands.
-make_mat <- function(surv,surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d){
+make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d){
   
   male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
+  female.dists <- female.dist(dum,popvect,normalize=FALSE) # TODO: combine dist functions 
   
   A <- matrix(0,nrow=18,ncol=18)
-  diag(A) <- surv
   
-  N.f.1 <- sum((dum$p1*popvect)[dum$sex == 'f'])
-  N.f.2 <- sum(((1-dum$p1)*popvect)[dum$sex == 'f'])
+  #diag(A) <- surv
+  
+  N.f.1 <- sum(female.dists[[1]])
+  N.f.2 <- sum(female.dists[[2]])
 
   N.m.1 <- sum(male.dists[[1]])
   N.m.2 <- sum(male.dists[[2]])
   
+  # in order to generate patch specific survival
+  # surv.1 and surv.2 vectors of length nrow(dum) that describe the survival probability of different genotypes
+  # on the different beaches. Could be density dependent. Could be different for males and females
+  diag(A) <- surv_adult(dum,male.dists,female.dists) #//dum$p1*surv.1 + (1-dum$p1)*surv.2
   
   surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.1/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
   surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.2/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
@@ -214,7 +269,7 @@ make_mat <- function(surv,surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d){
     # cat(all.equal(offs.dist.1.fake,offs.dist.1),"\t",
     # all.equal(offs.dist.2.fake,offs.dist.2),"\n")
 
-    
+    # change these p1's to change female distribution across the islands
     A[,i] <- A[,i] + dum$p1[i]*offs.dist.1*surv.1 + (1-dum$p1[i])*offs.dist.2*surv.2
     
   }
@@ -259,7 +314,7 @@ distance <- function(x,y){
 # FALSE/TRUE or TRUE/TRUE only the descriptive dum object
 # FALSE/FALSE timeseries and descriptive dum object are stored to two files, filename.csv and filename.dum
 #
-run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1){
+run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -293,7 +348,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 1,A.adv=1.5,wm=1,wf=0,N
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(dum2$surv,surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d)
+    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t]) # keeping population size constant
 

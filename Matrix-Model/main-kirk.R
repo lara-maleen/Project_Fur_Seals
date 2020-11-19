@@ -37,7 +37,7 @@ sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
 # determine focal
 focal <- list(a2=3,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.1)
 var.vars <- list(stype="constant",d=seq(0,1,0.1),Apenalty=c(0,0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5)) # variable levels for the variables
-
+ 
 pre_sims <- do.call(rbind,lapply(names(var.vars),FUN = function(curvar){
   if(!curvar %in% names(focal)){stop("unknown variable supplied to var.vars")}
 
