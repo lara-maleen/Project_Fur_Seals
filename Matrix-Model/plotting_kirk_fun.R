@@ -30,7 +30,7 @@ plot_one_ax <- function(idirs){
   }
   sumdat <- cbind(sims_all,summ)
 
-  library(ggplot2)
+  # library(ggplot2)
   library(tidyr)
   sumdat$ff1 <- sumdat$Nf1/(sumdat$Nf1 + sumdat$Nf2)
   sumdat$fm1 <- sumdat$Nm1/(sumdat$Nm1 + sumdat$Nm2)

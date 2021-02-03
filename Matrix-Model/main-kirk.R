@@ -13,7 +13,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model_kirk_version.R","logs.R","plotting_kirk_fun.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-kirklike-AAsurv/"
+odir <- "/data/home/koen/Fur_Seals/out-fullscan-1/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -26,17 +26,40 @@ if(!dir.exists(odir)){
   stop("Refusing to overwrite existing directory")
 }
 
-# factor 2 codes for the fact that the matrix model looks at total number of males (typically 0 - 0.5), instead of their frequency.
-# hence, a correction has to be made, since the old model looked at frequency of type 2 males (0-1) >> not true the model looks at frequency of males!
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
              linear = function(t2,sval,sslope) sval*t2,
               logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)),
              allee = function(t2,sval,sslope) sval*(exp(-sslope*t2) + plogis(sslope*(t2-0.5)))
              )
 
+
+### Generating the table with all the scenarios that will be run
+# run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
+
 # determine focal
-focal <- list(a2=3,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.1)
-var.vars <- list(stype="constant",d=seq(0,1,0.1),Apenalty=c(0,0.05,0.1,0.15,0.2,0.25,0.3,0.4,0.5)) # variable levels for the variables
+focal <- list(a2=1.8,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.3)
+# potential graphs:
+# 1. a2 x Apenalty
+# 2. sval x Apenalty
+# 3. mvm x mvf
+# first (1,2)
+var.vars <- list(a2=seq(1,2.8,0.2),Apenalty=seq(0,0.45,0.05),sval=seq(0,0.09,0.01)) # variable levels for the variables
+
+Nrep <- 20
+
+# option A: full factorial
+if(TRUE){
+allvar <- lapply(names(focal),FUN = function(x){
+   tmp <- c(focal[[x]],var.vars[[x]])
+   tmp[!duplicated(tmp)]
+  })
+names(allvar) <- names(focal)
+allvar[['replicate']] <- 1:Nrep
+pre_sims <- do.call(expand.grid,allvar)
+# remove multi slopes for constant survival functions
+sims <- pre_sims[!(pre_sims$stype%in%c("constant","linear") & pre_sims$sslope!=min(pre_sims$sslope)),]
+}else{
+# option B: focal and varieties on that focal
  
 pre_sims <- do.call(rbind,lapply(names(var.vars),FUN = function(curvar){
   if(!curvar %in% names(focal)){stop("unknown variable supplied to var.vars")}
@@ -56,11 +79,10 @@ pre_sims <- do.call(rbind,lapply(names(var.vars),FUN = function(curvar){
 }))
 
 pre_sims <- rbind(pre_sims,as.data.frame(focal))
-
-Nrep <- 20
 pre_sims_rep <- expand.grid(rown=1:nrow(pre_sims),rep=1:Nrep)
 sims <- pre_sims[pre_sims_rep$rown,]
 sims$replicate <-pre_sims_rep$rep
+}
 sims$wf <- 1-sims$wm
 
 Nt <- 1e5
