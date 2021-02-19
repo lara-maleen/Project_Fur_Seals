@@ -222,7 +222,7 @@ surv_adult <- function(dum,male.dists,female.dists){
 # output:
 # a length(popvect) x length(popvect) matrix that describes the population dynamics from t to t+1. Offspring is attributed to females only,
 # but the distribution of the offspring depends on the male distribution on the islands.
-make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d){
+make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=FALSE){
   
   male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
   female.dists <- female.dist(dum,popvect,normalize=FALSE) # TODO: combine dist functions 
@@ -250,6 +250,11 @@ make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d){
   
   male.vals.1 <- male.vals(dum,male.dists[[1]]/N.m.1,A.adv.1,d)
   male.vals.2 <- male.vals(dum,male.dists[[2]]/N.m.2,A.adv.2,d)
+  
+  if(random_father){
+    male.vals.1 <- male.vals(dum,(male.dists[[1]]+male.dists[[2]])/(N.m.1+N.m.2),A.adv.1,d)
+    male.vals.2 <- male.vals.1
+  }
   
   for(i in which(dum$sex == 'f')){
     if(N.m.1 > 1e-32){
@@ -314,7 +319,7 @@ distance <- function(x,y){
 # FALSE/TRUE or TRUE/TRUE only the descriptive dum object
 # FALSE/FALSE timeseries and descriptive dum object are stored to two files, filename.csv and filename.dum
 #
-run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1){
+run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1,random_father=FALSE){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -348,7 +353,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,N
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d)
+    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d,random_father = random_father)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t]) # keeping population size constant
 

@@ -5,7 +5,11 @@ fitness.males <- function(popvect,dum,mvm=0,mvf=0,A2=1.8,d=0.5,d2=0.5,wf=0.5,sur
   N.m.1 <- sum(popvect*as.numeric(dum$sex=='m')*dum$p1)
   N.m.2 <- sum(popvect*as.numeric(dum$sex=='m')*dum$p1)
   N.f.1 <- sum(popvect*as.numeric(dum$sex=='f')*(1-dum$p1))
-  N.f.2 <- sum(popvect*as.numeric(dum$sex=='f')*(1-dum$p1))
+  N.f.2 <- sum(popvect*as.sample_gain2 <- function(Ntotqueen,Nsites,Nrep=1e3){
+    sites <- rmultinom(Nrep,Ntotqueen,prob=rep(1/Nsites,Nsites)) # matrix(sample(Nsites, size=Ntotqueen*Nrep,replace=TRUE),ncol=Ntotqueen)
+    list(sites=sites,val=mean(colSums(as.numeric(sites!=0)*gain_fun(sites))))
+  }
+  numeric(dum$sex=='f')*(1-dum$p1))
   # offspring per island - based on #females
   pre_off_1 <- sum(dum$p1*as.numeric(dum$sex=='f')*popvect)# before survival penalty
   pre_off_2 <- sum((1-dum$p1)*as.numeric(dum$sex=='f')*popvect)

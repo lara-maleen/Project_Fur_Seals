@@ -1,9 +1,5 @@
 rm(list=ls())
 
-# Requires:
-# readr
-# ggplot2
-# gridExtra
 library(foreach)
 library(doMC)
 cores <- detectCores()
@@ -11,9 +7,9 @@ registerDoMC(cores)
 
 # Code dir
 cdir <- "/data/home/koen/Fur_Seals/Code/"
-sources <- c("matrix_model_kirk_version.R","logs.R","plotting_kirk_fun.R")
+sources <- c("matrix_model_kirk_version.R","logs.R","stat2.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-fullscan-1/"
+odir <- "/data/home/koen/Fur_Seals/out-randomfatherscan-1/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -37,21 +33,27 @@ sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
 # run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
 
 # determine focal
-focal <- list(a2=1.8,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.3)
+focal <- list(a2=1.8,sval=0.05,sslope=7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.3,random_father=TRUE)
 # potential graphs:
 # 1. a2 x Apenalty
 # 2. sval x Apenalty
 # 3. mvm x mvf
 # first (1,2)
-var.vars <- list(a2=seq(1,2.8,0.2),Apenalty=seq(0,0.45,0.05),sval=seq(0,0.09,0.01)) # variable levels for the variables
+var.vars <- list(mvm=seq(0,0.5,0.05),mvf=seq(0,0.5,0.05))#,sval=seq(0,0.09,0.01)) # variable levels for the variables
 
-Nrep <- 20
+Nrep <- 15
 
 # option A: full factorial
 if(TRUE){
 allvar <- lapply(names(focal),FUN = function(x){
    tmp <- c(focal[[x]],var.vars[[x]])
-   tmp[!duplicated(tmp)]
+   if(is.numeric(tmp)){
+     tmp <- tmp[order(tmp)]
+     tmp <- tmp[c(TRUE,abs(diff(tmp))>1e-14)]
+     tmp
+   }else{
+     tmp[!duplicated(tmp)]
+   }
   })
 names(allvar) <- names(focal)
 allvar[['replicate']] <- 1:Nrep
@@ -85,11 +87,11 @@ sims$replicate <-pre_sims_rep$rep
 }
 sims$wf <- 1-sims$wm
 
-Nt <- 1e5
+Nt <- 1e4
 # parameter values
 
 sims$seed <- sample(.Machine$integer.max,nrow(sims),replace=FALSE)#1:nrow(sims)
-sims$outfile <- paste("out",formatC(1:nrow(sims),width=3,flag="0"),sep="")
+sims$outfile <- paste("out",formatC(1:nrow(sims),width=4,flag="0"),sep="")
 setwd(odir)
 
 write.csv(sims,"simruns.csv")
@@ -108,15 +110,17 @@ construct_log(odir,c(sources,"main-kirk.R"),sims)
 setwd(odir.raw)
 out.stat <- foreach(i = 1:nrow(sims)) %dopar% {
  set.seed(sims$seed[i])
- with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[stype]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = mvm,min_val_f = mvf,Nt=Nt,d=d,d2=d2,maxfreq = 1,Apenalty = Apenalty))
+ with(sims[i,],run_sim(outfile,surv=0,surv_off=function(n) sfuns[[as.character(stype)]](n,sval,sslope),A.adv=a2,wm=wm,wf=wf, min_val_m = mvm,min_val_f = mvf,Nt=Nt,d=d,d2=d2,maxfreq = 1,Apenalty = Apenalty,random_father=random_father))
   # stats <- statistics(sims$outfile[i],surv = sims$surv[i],A.adv=sims$A.adv[i],dens_reg=sims$dens_reg[i],Tp=10,maxfreq = sims$maxfreq[i])
 return(0)
 }
+
+get_stats(odir)
 # setwd(odir)
 # out.stat <- do.call(rbind,out.stat)
 # write.csv(out.stat,"summary.stat")
 # log files (incl. the code names)
 # construct_log()
 # source(file.path(cdir,"plotting_kirk_fun.R"))
-plot_one_ax(odir)
+# plot_one_ax(odir)
 # 

@@ -1,9 +1,13 @@
 sfun <- function(n) 0.1*plogis(7.5*(n-0.5))
 sfun2 <- function(n) 0.05*plogis(7.5*(n-0.5))
 source("~/Documents/projects/Project_Fur_Seals/Matrix-Model/matrix_model_kirk_version.R")
+df01 <- read.csv("~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-maxiscan-1/focal.csv")
+
 dummy <- run_sim(Nt=100,surv_off=sfun,dumgen=TRUE)
-out1 <- run_sim(N0=as.numeric(dummy$Ascore == 0),Nt=100,min_val_m=0,min_val_f=0,surv_off=sfun,test=TRUE,tol = -10)
-out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
+out1 <- with(df01[1,],run_sim(A.adv = a2,wm=wm,wf=1-wm,d=d,d2=d2,Nt=1000,min_val_m=mvm,min_val_f=mvf,Apenalty = Apenalty,surv_off=sfun2,test=TRUE,tol = -10))
+# out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
+
+out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=1000,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 0.5,wf=0.5,d=0.5,d2 = 0.5)
 
 library(ggplot2)
 
@@ -135,13 +139,13 @@ gr31 <- function(ldat,sep_isle=FALSE){
   }
   p1 <- ggplot(fulldat,aes(x=t,y=x,lty=factor(isle),col=factor(sex))) + facet_grid(var~.,scales="free_y") +
         scale_x_continuous(expand=c(0,0)) + scale_y_continuous(expand=c(0,0)) +
-        theme_classic() + xlab("time") + ylab("N") + guides(linetype = guide_legend(override.aes=list(fill=NA,lwd=1)))
+        theme_classic() + xlab("time") + ylab("N") + guides(linetype = guide_legend(override.aes=list(fill=NA,lwd=1))) +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
        
   p2 <- p1 + geom_line(data=fulldat[fulldat$var=='N',],aes(x=t,y=x,lty=factor(isle),col=factor(sex)),lwd=2,inherit.aes = TRUE) +
         scale_linetype_manual(name="island",values=c("solid", "22"))+
-        scale_color_discrete(name="sex")
+        scale_color_discrete(name="sex") +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
   p3 <- p2 + geom_col(data=fulldat[fulldat$var!='N',],aes(x=t,y=x,fill=factor(genotype)),position="fill",col=NA)+
-    scale_fill_manual(values=c('dodgerblue','orange','grey'),name='genotype',labels=c('aa/bb','Aa/Bb','AA/BB',''))
+    scale_fill_manual(values=c('dodgerblue','orange','grey'),name='genotype',labels=c('aa/bb','Aa/Bb','AA/BB','')) +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
   g <- ggplotGrob(p3)
   
   g$heights[c(9+2*as.numeric(sep_isle))] <- unit(3,'null')
@@ -152,16 +156,16 @@ gr31 <- function(ldat,sep_isle=FALSE){
 
 ldat <- restructure_df(out1$ts,out1$dum)
 ldat2 <- restructure_df(out2$ts,out2$dum)
-pdf("time-series.pdf")
+pdf("time-series-3.pdf",width=5,height=5)
 stbar(ldat)
 gr31(ldat,TRUE)
 gr31(ldat)
 lines_dist(ldat$m,ldat$f,ht=0.1,ylm=c(-0.1,1))
-
-stbar(ldat2)
-gr31(ldat2,TRUE)
-gr31(ldat2)
-lines_dist(ldat2$m,ldat2$f,ht=0.05,ylm=c(0,0.4))
+# 
+# stbar(ldat2)
+# gr31(ldat2,TRUE)
+# gr31(ldat2)
+# lines_dist(ldat2$m,ldat2$f,ht=0.05,ylm=c(0,0.4))
 
 dev.off()
 
