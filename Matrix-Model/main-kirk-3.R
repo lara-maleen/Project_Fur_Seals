@@ -9,7 +9,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model_kirk_version.R","logs.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-absdens-1/"
+odir <- "/data/home/koen/Fur_Seals/out-absdens-3/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -24,7 +24,7 @@ if(!dir.exists(odir)){
 
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
              linear = function(t2,sval,sslope) sval*t2,
-              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)),
+              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.25)),
              allee = function(t2,sval,sslope) sval*(exp(-sslope*t2) + plogis(sslope*(t2-0.5)))
              )
 
@@ -33,13 +33,14 @@ sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
 # run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
 
 # determine focal
-focal <- list(a2=1.8,sval=0.05,sslope=2*7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.3,random_father=FALSE,rel_dens=FALSE)
+focal <- list(a2=1.8,sval=0.05,sslope=2*7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=0.5,mvm=0.05,mvf=0.05,Apenalty=0.3,rel_dens=FALSE,random_father=FALSE)
 # potential graphs:
 # 1. a2 x Apenalty
 # 2. sval x Apenalty
 # 3. mvm x mvf
 # first (1,2)
-var.vars <- list(mvm=seq(0,0.5,0.05),mvf=seq(0,0.5,0.05))#,sval=seq(0,0.09,0.01)) # variable levels for the variables
+#var.vars <- list(mvm=seq(0,0.5,0.05),mvf=seq(0,0.5,0.05)) # variable levels for the variables
+var.vars <- list(sval=seq(0,0.1,0.01),Apenalty=seq(0,0.5,0.05))
 
 Nrep <- 15
 

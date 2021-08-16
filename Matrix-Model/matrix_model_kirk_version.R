@@ -222,7 +222,7 @@ surv_adult <- function(dum,male.dists,female.dists){
 # output:
 # a length(popvect) x length(popvect) matrix that describes the population dynamics from t to t+1. Offspring is attributed to females only,
 # but the distribution of the offspring depends on the male distribution on the islands.
-make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=FALSE){
+make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=FALSE,rel_dens=TRUE){
   
   male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
   female.dists <- female.dist(dum,popvect,normalize=FALSE) # TODO: combine dist functions 
@@ -242,9 +242,14 @@ make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=
   # on the different beaches. Could be density dependent. Could be different for males and females
   diag(A) <- surv_adult(dum,male.dists,female.dists) #//dum$p1*surv.1 + (1-dum$p1)*surv.2
   
-  surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.1/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
-  surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.2/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
-
+  if(rel_dens){
+    surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.1/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
+    surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.2/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+  }else{
+    surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1 + wf/(wm+wf)*N.f.1) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
+    surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2 + wf/(wm+wf)*N.f.2) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+    
+  }
   A.adv.1 <- A.adv #2*plogis(5*(ml1))
   A.adv.2 <- A.adv #2*plogis(5*(ml2))
   
@@ -319,7 +324,7 @@ distance <- function(x,y){
 # FALSE/TRUE or TRUE/TRUE only the descriptive dum object
 # FALSE/FALSE timeseries and descriptive dum object are stored to two files, filename.csv and filename.dum
 #
-run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1,random_father=FALSE){
+run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,Nt=1e3, min_val_m=0.3, min_val_f=0.1,N0,tol=1e-4,maxfreq=1,d=0.5,d2=0.5,dumgen=FALSE,test=FALSE,Apenalty=0.1,random_father=FALSE,rel_dens=TRUE){
   if(missing(N0)){
     N0 <- runif(18)
   }
@@ -353,7 +358,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,N
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d,random_father = random_father)
+    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d,random_father = random_father,rel_dens=rel_dens)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t]) # keeping population size constant
 

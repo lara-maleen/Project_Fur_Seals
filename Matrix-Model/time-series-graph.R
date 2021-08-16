@@ -4,10 +4,10 @@ source("~/Documents/projects/Project_Fur_Seals/Matrix-Model/matrix_model_kirk_ve
 df01 <- read.csv("~/Documents/projects/Project_Fur_Seals/Matrix-Model/out-maxiscan-1/focal.csv")
 
 dummy <- run_sim(Nt=100,surv_off=sfun,dumgen=TRUE)
-out1 <- with(df01[1,],run_sim(A.adv = a2,wm=wm,wf=1-wm,d=d,d2=d2,Nt=1000,min_val_m=mvm,min_val_f=mvf,Apenalty = Apenalty,surv_off=sfun2,test=TRUE,tol = -10))
+out1 <- with(df01[1,],run_sim(A.adv = a2,wm=wm,wf=1-wm,d=d,d2=d2,Nt=1e3,min_val_m=mvm,min_val_f=mvf,Apenalty = Apenalty,surv_off=sfun2,test=TRUE,tol = -10))
 # out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=100,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 1,wf=0,d=0.5,d2 = 0.5)
 
-out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=1000,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.8,Apenalty = 0.3,wm = 0.5,wf=0.5,d=0.5,d2 = 0.5)
+out2 <- run_sim(N0=runif(nrow(dummy)),min_val_m=0.05,min_val_f=0.05,Nt=2e3,surv_off=sfun2,test=TRUE,tol=-10,A.adv = 1.1,Apenalty = 0.45,wm = 0.5,wf=0.5,d=0.5,d2 = 0.5)
 
 library(ggplot2)
 
@@ -122,9 +122,15 @@ library(grid)
 gr31 <- function(ldat,sep_isle=FALSE){
   mdat <- ldat$m
   fdat <- ldat$f
+  tdat <- mdat
+  # tdat$x <- mdat$x + fdat$x[match(paste(tdat$t,tdat$isle),paste(fdat$t,fdat$isle))]
   magg <- aggregate(mdat$x,by=list(t=mdat$t,isle=mdat$isle,sex=mdat$sex),sum)
   fagg <- aggregate(fdat$x,by=list(t=fdat$t,isle=fdat$isle,sex=fdat$sex),sum)
-  aggf <- with(rbind(magg,fagg),data.frame(t=t,sex=sex,genotype=NA,isle=isle,x=x,var='N'))
+  Nagg <- magg
+  Nagg$x <- magg$x + fagg$x[match(paste(magg$t,magg$isle),paste(fagg$t,fagg$isle))]
+  Nagg$sex <- "Total"
+  # Nagg <- aggregate(tdat$x,by=list(t=tdat$t,isle=tdat$isle,sex=rep("Total",nrow(tdat))),sum)
+  aggf <- with(rbind(magg,fagg,Nagg),data.frame(t=t,sex=sex,genotype=NA,isle=isle,x=x,var='N'))
   fdat$var <- 'f'
   mdat$var <- 'm'
   if(sep_isle){
@@ -143,7 +149,7 @@ gr31 <- function(ldat,sep_isle=FALSE){
        
   p2 <- p1 + geom_line(data=fulldat[fulldat$var=='N',],aes(x=t,y=x,lty=factor(isle),col=factor(sex)),lwd=2,inherit.aes = TRUE) +
         scale_linetype_manual(name="island",values=c("solid", "22"))+
-        scale_color_discrete(name="sex") +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
+        scale_color_manual(name="sex",values=c("violetred","lightskyblue2","plum4")) +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
   p3 <- p2 + geom_col(data=fulldat[fulldat$var!='N',],aes(x=t,y=x,fill=factor(genotype)),position="fill",col=NA)+
     scale_fill_manual(values=c('dodgerblue','orange','grey'),name='genotype',labels=c('aa/bb','Aa/Bb','AA/BB','')) +   theme(panel.border=element_rect(colour="black",size=1,fill=NA))
   g <- ggplotGrob(p3)
@@ -162,10 +168,10 @@ gr31(ldat,TRUE)
 gr31(ldat)
 lines_dist(ldat$m,ldat$f,ht=0.1,ylm=c(-0.1,1))
 # 
-# stbar(ldat2)
-# gr31(ldat2,TRUE)
-# gr31(ldat2)
-# lines_dist(ldat2$m,ldat2$f,ht=0.05,ylm=c(0,0.4))
+stbar(ldat2)
+gr31(ldat2,TRUE)
+gr31(ldat2)
+lines_dist(ldat2$m,ldat2$f,ht=0.05,ylm=c(0,0.4))
 
 dev.off()
 

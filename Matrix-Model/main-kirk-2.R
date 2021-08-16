@@ -9,7 +9,7 @@ registerDoMC(cores)
 cdir <- "/data/home/koen/Fur_Seals/Code/"
 sources <- c("matrix_model_kirk_version.R","logs.R")
 # Out dir
-odir <- "/data/home/koen/Fur_Seals/out-absdens-1/"
+odir <- "/data/home/koen/Fur_Seals/out-absdens-2/"
 odir.raw <- paste(odir,"raw",sep="")
 
 setwd(cdir)
@@ -24,7 +24,7 @@ if(!dir.exists(odir)){
 
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
              linear = function(t2,sval,sslope) sval*t2,
-              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)),
+              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.25)),
              allee = function(t2,sval,sslope) sval*(exp(-sslope*t2) + plogis(sslope*(t2-0.5)))
              )
 

@@ -24,7 +24,7 @@ if(!dir.exists(odir)){
 
 sfuns <- list(constant = function(t2,sval,sslope) rep(sval,length(t2)),
              linear = function(t2,sval,sslope) sval*t2,
-              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.5)),
+              logistic = function(t2,sval,sslope) sval*plogis(sslope*(t2-0.25)),
              allee = function(t2,sval,sslope) sval*(exp(-sslope*t2) + plogis(sslope*(t2-0.5)))
              )
 
@@ -39,7 +39,8 @@ focal <- list(a2=1.8,sval=0.05,sslope=2*7.5,stype=c('logistic'),wm=0.5,d=0.5,d2=
 # 2. sval x Apenalty
 # 3. mvm x mvf
 # first (1,2)
-var.vars <- list(mvm=seq(0,0.5,0.05),mvf=seq(0,0.5,0.05))#,sval=seq(0,0.09,0.01)) # variable levels for the variables
+#var.vars <- list(mvm=seq(0,0.5,0.05),mvf=seq(0,0.5,0.05)) # variable levels for the variables
+var.vars <- list(a2=seq(1,3,0.2),Apenalty=seq(0,0.5,0.05))
 
 Nrep <- 15
 
