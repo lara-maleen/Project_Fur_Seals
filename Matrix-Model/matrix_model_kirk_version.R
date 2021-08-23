@@ -222,7 +222,7 @@ surv_adult <- function(dum,male.dists,female.dists){
 # output:
 # a length(popvect) x length(popvect) matrix that describes the population dynamics from t to t+1. Offspring is attributed to females only,
 # but the distribution of the offspring depends on the male distribution on the islands.
-make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=FALSE,rel_dens=TRUE){
+make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=FALSE,rel_dens=TRUE,t,filename){
   
   male.dists <- male.dist(dum,popvect,maxfreq,normalize = FALSE)
   female.dists <- female.dist(dum,popvect,normalize=FALSE) # TODO: combine dist functions 
@@ -245,9 +245,15 @@ make_mat <- function(surv_off,popvect,dum,A.adv,wm,wf,maxfreq=1,d,random_father=
   if(rel_dens){
     surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.1/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
     surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2/(N.m.1+N.m.2) + wf/(wm+wf)*N.f.2/(N.f.1+N.f.2)) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+    if(t==5){
+      cat("\nrelative density used in surv_off\n",file = paste(filename,".log",sep=""),append=TRUE)
+    }
   }else{
     surv.1 <- 1-surv_off(wm/(wm+wf)*N.m.1 + wf/(wm+wf)*N.f.1) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.1))
     surv.2 <- 1-surv_off(wm/(wm+wf)*N.m.2 + wf/(wm+wf)*N.f.2) #1-dens_reg+dens_reg*plogis(5*(0.25-N.f.2))
+    if(t==5){
+      cat("\absolute density used in surv_off\n",file = paste(filename,".log",sep=""),append=TRUE)
+    }
     
   }
   A.adv.1 <- A.adv #2*plogis(5*(ml1))
@@ -347,6 +353,11 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,N
   if(dumgen){return(dum2)}
   if(!test){write.csv(dum2,file=paste(filename,".dum",sep=""))}
 
+  cat(deparse(match.call()),file=paste(filename,".log",sep=""))
+  tfun <- function(lst){
+    do.call(paste,lapply(1:length(lst), function(x) paste(names(lst)[x],lst[[x]],"\n",sep="",collapse="")))
+  }
+  cat(tfun(as.list(surv_off)),file=paste(filename,".log",sep=""),append=TRUE)
   # objects to store timeseries
   store <- matrix(NA,nrow=length(N0),ncol=Nt)
   
@@ -358,7 +369,7 @@ run_sim <- function(filename,surv=0,surv_off=function(n) 0,A.adv=1.5,wm=1,wf=0,N
   final_store[,1] <- c(1,store[,1])
   max_store <- 1 # highest index currently used in the final_store matrix
   for(t in 2:Nt){
-    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d,random_father = random_father,rel_dens=rel_dens)
+    A <- make_mat(surv_off,store[,t-1],dum2,A.adv,wm,wf,maxfreq = maxfreq,d,random_father = random_father,rel_dens=rel_dens,t=t,filename=filename)
     store[,t] <- A %*% store[,t-1] 
     store[,t] <- store[,t]/sum(store[,t]) # keeping population size constant
 

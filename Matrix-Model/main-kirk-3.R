@@ -7,7 +7,7 @@ registerDoMC(cores)
 
 # Code dir
 cdir <- "/data/home/koen/Fur_Seals/Code/"
-sources <- c("matrix_model_kirk_version.R","logs.R")
+sources <- c("matrix_model_kirk_version.R","logs.R","stat2.R")
 # Out dir
 odir <- "/data/home/koen/Fur_Seals/out-absdens-3/"
 odir.raw <- paste(odir,"raw",sep="")
@@ -100,7 +100,7 @@ write.csv(as.data.frame(focal),"focal.csv")
 save(sfuns,file = "sfuns")
 
 setwd(cdir)
-construct_log(odir,c(sources,"main-kirk.R"),sims)
+construct_log(odir,c(sources,"main-kirk-3.R"),sims)
 
 
 #tmp <- statistics(empty=TRUE)

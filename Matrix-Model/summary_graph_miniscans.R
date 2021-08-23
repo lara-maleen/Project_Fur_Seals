@@ -1,7 +1,7 @@
 rm(list=ls())
 maindir <- "~/Documents/projects/Project_Fur_Seals/Matrix-Model/"
 
-combset <- 1 # to prevent having to regroup the simulations always
+combset <- 4 # to prevent having to regroup the simulations always
 # 'out-maxiscan-3/'="plain",'out-randomfatherscan-3/'='random father',
 # 'out-maxiscan-2/'="plain",'out-randomfatherscan-2/'='random father',
 # 'out-maxiscan-1/'="plain",'out-randomfatherscan-1/'='random father',
@@ -11,10 +11,15 @@ if(combset==1){
   subdirs <- c("out-maxiscan-1/","out-randomfatherscan-2/")
 }else if(combset==3){
   subdirs <- c("out-maxiscan-3/","out-randomfatherscan-3/")
+}else if(combset>=4){
+  subdirs <- paste(c("out-absdens-","out-absdens-ranfat-"),combset-3,sep="")
 }
 odir <- paste(maindir,subdirs[1],sep="")
 
-df <- read.csv(paste(maindir,subdirs[1],"/simruns.stat",sep=""))
+df <- read.csv(file.path(maindir,subdirs[1],"simruns.stat"))
+if(combset>=4){
+  df <- cbind(read.csv(file.path(maindir,subdirs[1],"simruns.csv")),df[,-1])
+}
 if(!"random_father" %in% colnames(df)){
   df <- cbind(df[,1:12],FALSE,df[,13:34])
   colnames(df)[13] <- "random_father"
@@ -22,7 +27,7 @@ if(!"random_father" %in% colnames(df)){
 df$sbd <- subdirs[1]
 if(length(subdirs) > 1){
 for(fl in subdirs[-1]){
-  tmp <- read.csv(paste(maindir,fl,"/simruns.stat",sep=""))
+  tmp <- cbind(read.csv(file.path(maindir,fl,"simruns.csv")),read.csv(file.path(maindir,fl,"simruns.stat"))[,-1])
   if(!"random_father" %in% colnames(tmp)){
     tmp <- cbind(tmp[,1:12],FALSE,tmp[,13:34])
     colnames(tmp)[13] <- "random_father"
@@ -58,7 +63,7 @@ df$r2 <- df$N.2.f/df$N.2.m
 library(tidyr)
 df2 <- gather(df,condition,val,DNf:r2)
 
-pdf(paste(odir,"comb-graph.pdf",sep=""),width=6,height=4)
+pdf(file.path(odir,"comb-graph.pdf"),width=6,height=4)
 for(i in 1:nrow(tmp)){
   var1 <- varvar3[tmp$var1[i]]
   var2 <- varvar3[tmp$var2[i]]
@@ -76,6 +81,9 @@ for(i in 1:nrow(tmp)){
       'out-maxiscan-3/'="plain",'out-randomfatherscan-3/'='random father',
       'out-maxiscan-2/'="plain",'out-randomfatherscan-2/'='random father',
       'out-maxiscan-1/'="plain",'out-randomfatherscan-1/'='random father',
+      'out-absdens-1'='Absolute density','out-absdens-ranfat-1'='Ab. dens, rand. fat.',
+      'out-absdens-2'='Absolute density','out-absdens-ranfat-2'='Ab. dens, rand. fat.',
+      'out-absdens-3'='Absolute density','out-absdens-ranfat-3'='Ab. dens, rand. fat.',
       'out-maxiscan-1-lowpenalty/'='weak density effect','out-maxiscan-2-lowpenalty/'='weak density effect',
       'out-maxiscan-2-long-lowpanelty/'='10x longer',
       'out-offspringsurvives-1/'="no survival penalty")[x]
